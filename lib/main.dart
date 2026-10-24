@@ -1,37 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:meu_app_android/core/database/app_database.dart';
-import 'package:meu_app_android/core/routes/app_router.dart';
-import 'package:meu_app_android/core/theme/app_theme.dart';
+import 'package:projeto_2/core/routes/app_router.dart';
+import 'package:projeto_2/core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final db = await AppDatabase.instance.database;
-  final u = await db.rawQuery('SELECT COUNT(*) AS n FROM unidades');
-  final c = await db.rawQuery('SELECT COUNT(*) AS n FROM categorias');
-  debugPrint('Unidades cadastradas: ${u.first['n']}');
-  debugPrint('Categorias cadastradas: ${c.first['n']}');
-
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Estoque UAN',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }
