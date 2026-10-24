@@ -31,7 +31,7 @@ Dentro de cada feature: models/, repositories/, providers/, screens/, widgets/.
 - Produtos e usuários nunca são excluídos, apenas inativados (campo ativo).
 - O QR Code de um produto contém apenas o ID do produto.
 - Datas em texto ISO 8601.
-- O esquema do banco será fornecido na etapa 1 (docs/esquema_banco.sql). Siga-o exatamente.
+   - O esquema do banco está em lib/core/database/app_database.dart. Não altere tabelas, colunas nem constraints sem pedido explícito.
 
 ## Forma de trabalho
 - Faça uma etapa por vez. Ao terminar, liste os arquivos criados/alterados.
