@@ -1,0 +1,38 @@
+# Projeto: app Flutter (Android) de controle de estoque para UAN
+
+## Regras gerais
+- Responda e comente o código em português. Nomes de classes, variáveis e arquivos em inglês ou português simples, sem acentos.
+- Trabalhe SOMENTE no que o prompt pedir. Não refatore, não renomeie e não "melhore" arquivos que não foram citados.
+- NÃO execute comandos de terminal. Se algum comando for necessário, escreva-o na resposta e peça ao usuário para rodar.
+- NÃO adicione, remova nem atualize pacotes no pubspec.yaml sem pedido explícito.
+- NÃO use Firebase, nem qualquer serviço online. O app é 100% local, em um único aparelho.
+- Plataforma alvo: Android. Não crie código específico para web ou desktop.
+
+## Stack fixa
+- Estado: flutter_riverpod
+- Navegação: go_router
+- Banco: sqflite (SQL puro, com repositórios)
+- Preferências simples (tema, fonte, usuário logado): shared_preferences
+- Senha: hash com salt (pacote cryptography), nunca em texto puro
+
+## Estrutura de pastas (feature-first)
+lib/
+  core/ (database/, theme/, routes/, utils/)
+  features/ (auth, perfil, produtos, movimentacoes, inventario, relatorios, configuracoes, tutorial)
+  main.dart
+Dentro de cada feature: models/, repositories/, providers/, screens/, widgets/.
+- Todo SQL fica SOMENTE em repositories/. Telas nunca acessam o banco diretamente.
+
+## Regras de dados (não alterar)
+- Quantidades são salvas como INTEIROS em milésimos (1,5 kg = 1500). Nunca usar double para saldo ou quantidade.
+- Cada produto tem uma unidade (tabela unidades). Unidades contáveis (un, pct, cx...) só aceitam inteiros; fracionáveis (kg, L...) aceitam até 3 casas decimais.
+- Movimentação é imutável: nunca editar nem apagar. Correção = nova movimentação de ajuste.
+- Saldo do produto e movimentação são gravados na MESMA transação do SQLite.
+- Produtos e usuários nunca são excluídos, apenas inativados (campo ativo).
+- O QR Code de um produto contém apenas o ID do produto.
+- Datas em texto ISO 8601.
+- O esquema do banco será fornecido na etapa 1 (docs/esquema_banco.sql). Siga-o exatamente.
+
+## Forma de trabalho
+- Faça uma etapa por vez. Ao terminar, liste os arquivos criados/alterados.
+- Se algo estiver ambíguo, pergunte antes de decidir.
