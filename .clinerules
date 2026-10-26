@@ -3,7 +3,7 @@
 ## Regras gerais
 - Responda e comente o código em português. Nomes de classes, variáveis e arquivos em inglês ou português simples, sem acentos.
 - Trabalhe SOMENTE no que o prompt pedir. Não refatore, não renomeie e não "melhore" arquivos que não foram citados.
-- NÃO execute comandos de terminal. Se algum comando for necessário, escreva-o na resposta e peça ao usuário para rodar.
+- Comandos de terminal: execute APENAS (sempre pedindo aprovação) flutter analyze, flutter test, git status, git add . e git commit -m "mensagem". Qualquer outro comando, escreva na resposta e peça ao usuário. NUNCA rode flutter pub upgrade, flutter clean, git reset, git clean nem comandos que apaguem arquivos.
 - NÃO adicione, remova nem atualize pacotes no pubspec.yaml sem pedido explícito.
 - NÃO use Firebase, nem qualquer serviço online. O app é 100% local, em um único aparelho.
 - Plataforma alvo: Android. Não crie código específico para web ou desktop.
@@ -36,3 +36,6 @@ Dentro de cada feature: models/, repositories/, providers/, screens/, widgets/.
 ## Forma de trabalho
 - Faça uma etapa por vez. Ao terminar, liste os arquivos criados/alterados.
 - Se algo estiver ambíguo, pergunte antes de decidir.
+- Quando o prompt trouxer o conteúdo completo de um arquivo, crie o arquivo com EXATAMENTE esse conteúdo, sem alterar nenhum caractere, e crie as pastas necessárias.
+- Todos os imports internos usam o prefixo package:projeto_2/...
+- Ao concluir cada etapa, rode flutter analyze e flutter test, e se algum falhar, corrija apenas o que os erros apontam e rode de novo.
