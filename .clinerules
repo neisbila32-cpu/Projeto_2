@@ -38,4 +38,12 @@ Dentro de cada feature: models/, repositories/, providers/, screens/, widgets/.
 - Se algo estiver ambíguo, pergunte antes de decidir.
 - Quando o prompt trouxer o conteúdo completo de um arquivo, crie o arquivo com EXATAMENTE esse conteúdo, sem alterar nenhum caractere, e crie as pastas necessárias.
 - Todos os imports internos usam o prefixo package:projeto_2/...
+
+## Conduta em cada tarefa
+
+- Antes de modificar qualquer arquivo, analise a estrutura atual do projeto: arquitetura, componentes reutilizáveis, providers e rotas já existentes. Reutilize o que existe e não recrie componentes.
+- Apresente um plano breve antes de implementar.
+- Em toda tela, trate estados de carregamento, estado vazio e erros, e faça a validação necessária dos campos.
+- Não remova funcionalidades existentes e não altere arquivos que não tenham relação com a tarefa.
+- Ao concluir: rode flutter analyze e flutter test, corrija apenas os erros introduzidos pela tarefa e informe (1) os arquivos criados e alterados, (2) os testes executados com seus resultados e (3) qualquer ponto que não foi testado ou que dependa de ação manual do usuário.
 - Ao concluir cada etapa, rode flutter analyze e flutter test, e se algum falhar, corrija apenas o que os erros apontam e rode de novo.
