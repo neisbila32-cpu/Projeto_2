@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -26,11 +27,20 @@ class AppDatabase {
     );
   }
 
-  Future<void> _onConfigure(Database db) async {
+  /// Injeta um banco de teste (em memória ou arquivo) no singleton.
+  /// Somente para uso em testes; não altera o comportamento de produção.
+  @visibleForTesting
+  static void injetarBancoParaTestes(Database db) {
+    AppDatabase.instance._dbFuture = Future.value(db);
+  }
+
+  /// Configura o banco (PRAGMAs). Extraído para reutilização em testes.
+  static Future<void> configurarBanco(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  /// Cria o esquema e insere os dados iniciais. Extraído para reutilização em testes.
+  static Future<void> criarEsquema(Database db, int version) async {
     final batch = db.batch();
 
     batch.execute('''
@@ -157,6 +167,14 @@ class AppDatabase {
     }
 
     await batch.commit(noResult: true);
+  }
+
+  Future<void> _onConfigure(Database db) async {
+    await configurarBanco(db);
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    await criarEsquema(db, version);
   }
 }
 
