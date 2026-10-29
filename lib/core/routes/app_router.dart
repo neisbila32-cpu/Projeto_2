@@ -7,7 +7,6 @@ import 'package:projeto_2/features/auth/screens/login_screen.dart';
 import 'package:projeto_2/features/auth/screens/recuperar_senha_screen.dart';
 import 'package:projeto_2/features/home/screens/home_screen.dart';
 import 'package:projeto_2/features/movimentacoes/screens/movimentacao_form_screen.dart';
-import 'package:projeto_2/features/movimentacoes/screens/produto_seletor_screen.dart';
 import 'package:projeto_2/features/produtos/screens/categorias_screen.dart';
 import 'package:projeto_2/features/produtos/screens/produto_form_screen.dart';
 import 'package:projeto_2/features/produtos/screens/unidades_screen.dart';
@@ -72,10 +71,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/unidades',
         builder: (context, state) => const UnidadesScreen(),
-      ),
-      GoRoute(
-        path: '/movimentar',
-        builder: (context, state) => const ProdutoSeletorScreen(),
       ),
       GoRoute(
         path: '/produtos/:id/movimentar',

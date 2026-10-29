@@ -6,6 +6,7 @@ import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/movimentacoes/models/movimentacao.dart';
+import 'package:projeto_2/features/historico/providers/historico_providers.dart';
 import 'package:projeto_2/features/movimentacoes/providers/movimentacao_providers.dart';
 import 'package:projeto_2/features/produtos/providers/produto_providers.dart';
 
@@ -143,7 +144,32 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
             : 'Quantidade';
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Movimentar estoque')),
+          appBar: AppBar(
+            title: const Text('Movimentar estoque'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                tooltip: 'Editar produto',
+                onPressed: () async {
+                  await context.push('/produtos/${widget.produtoId}/editar');
+                  if (!mounted) return;
+                  ref.invalidate(produtoPorIdProvider(widget.produtoId));
+                  ref.invalidate(produtosProvider);
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.history),
+                tooltip: 'Ver histórico',
+                onPressed: () {
+                  ref.read(historicoFiltroProvider.notifier).limpar();
+                  ref
+                      .read(historicoFiltroProvider.notifier)
+                      .setProduto(widget.produtoId);
+                  context.push('/historico');
+                },
+              ),
+            ],
+          ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(

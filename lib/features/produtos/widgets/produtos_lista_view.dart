@@ -171,7 +171,7 @@ Widget _listaAgrupada(List<Produto> produtos, BuildContext context,
             if (aoTocar != null) {
               aoTocar!(p);
             } else {
-              context.push('/produtos/${p.id}/editar');
+              context.push('/produtos/${p.id}/movimentar');
             }
           },
         ),

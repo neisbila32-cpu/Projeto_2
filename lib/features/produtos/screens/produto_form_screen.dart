@@ -317,17 +317,6 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _carregando
-                        ? null
-                        : () => context.push('/produtos/${produto.id}/movimentar'),
-                    icon: const Icon(Icons.inventory),
-                    label: const Text('Movimentar estoque'),
-                  ),
-                ),
               ],
             ],
           ),

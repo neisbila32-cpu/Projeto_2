@@ -72,13 +72,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 context.pop();
               },
             ),
-            ListTile(
-              title: const Text('Movimentar estoque'),
-              onTap: () {
-                context.pop();
-                context.push('/movimentar');
-              },
-            ),
             categoriasAsync.when(
               data: (categorias) => Column(
                 mainAxisSize: MainAxisSize.min,
