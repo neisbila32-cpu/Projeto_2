@@ -85,10 +85,20 @@ class ProdutosListaView extends ConsumerWidget {
                 }
 
                 if (filtro.categoriaId == null) {
-                  return _listaAgrupada(produtos, context, aoTocar: aoTocar);
+                  return _listaAgrupada(produtos, aoTocar: aoTocar);
                 }
 
-                return _listaSimples(produtos, context, aoTocar: aoTocar);
+                return ListView.builder(
+                  itemCount: produtos.length,
+                  itemBuilder: (context, index) {
+                    final produto = produtos[index];
+                    return _ProdutoItem(
+                      produto: produto,
+                      aoTocar: aoTocar,
+                      mostrarCategoria: true,
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -98,37 +108,7 @@ class ProdutosListaView extends ConsumerWidget {
   }
 }
 
-Widget _listaSimples(List<Produto> produtos, BuildContext context,
-    {void Function(Produto produto)? aoTocar}) {
-  return ListView.builder(
-    itemCount: produtos.length,
-    itemBuilder: (context, index) {
-      final produto = produtos[index];
-      return Card(
-        color: produto.ativo ? null : Colors.grey.shade200,
-        child: ListTile(
-          title: Text(
-            produto.nome,
-            style: TextStyle(
-              color: produto.ativo ? null : Colors.grey,
-            ),
-          ),
-          subtitle: Text(produto.categoriaNome),
-          trailing: Text(produto.saldoFormatado),
-          onTap: () {
-            if (aoTocar != null) {
-              aoTocar!(produto);
-            } else {
-              context.push('/produtos/${produto.id}/editar');
-            }
-          },
-        ),
-      );
-    },
-  );
-}
-
-Widget _listaAgrupada(List<Produto> produtos, BuildContext context,
+Widget _listaAgrupada(List<Produto> produtos,
     {void Function(Produto produto)? aoTocar}) {
   final agrupado = <String, List<Produto>>{};
   for (final p in produtos) {
@@ -157,30 +137,52 @@ Widget _listaAgrupada(List<Produto> produtos, BuildContext context,
       ),
     );
     widgets.addAll(produtosCategoria.map(
-      (p) => Card(
-        color: p.ativo ? null : Colors.grey.shade200,
-        child: ListTile(
-          title: Text(
-            p.nome,
-            style: TextStyle(
-              color: p.ativo ? null : Colors.grey,
-            ),
-          ),
-          trailing: Text(p.saldoFormatado),
-          onTap: () {
-            if (aoTocar != null) {
-              aoTocar!(p);
-            } else {
-              context.push('/produtos/${p.id}/movimentar');
-            }
-          },
-        ),
+      (p) => _ProdutoItem(
+        produto: p,
+        aoTocar: aoTocar,
+        mostrarCategoria: false,
       ),
     ));
     widgets.add(const Divider(height: 1));
   }
 
   return ListView(children: widgets);
+}
+
+class _ProdutoItem extends StatelessWidget {
+  const _ProdutoItem({
+    required this.produto,
+    required this.aoTocar,
+    this.mostrarCategoria = false,
+  });
+
+  final Produto produto;
+  final void Function(Produto produto)? aoTocar;
+  final bool mostrarCategoria;
+
+  @override
+  Widget build(BuildContext context) {
+    final ativo = produto.ativo;
+    return Card(
+      color: ativo ? null : Colors.grey.shade200,
+      child: ListTile(
+        title: Text(
+          produto.nome,
+          style: TextStyle(color: ativo ? null : Colors.grey),
+        ),
+        subtitle:
+            mostrarCategoria ? Text(produto.categoriaNome) : null,
+        trailing: Text(produto.saldoFormatado),
+        onTap: () {
+          if (aoTocar != null) {
+            aoTocar!(produto);
+          } else {
+            context.push('/produtos/${produto.id}/movimentar');
+          }
+        },
+      ),
+    );
+  }
 }
 
 class _CategoriaChips extends ConsumerWidget {
