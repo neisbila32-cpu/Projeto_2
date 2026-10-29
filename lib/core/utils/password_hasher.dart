@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 
-/// Hash de senha com PBKDF2-HMAC-SHA256 + salt aleatÃ³rio.
+/// Hash de senha com PBKDF2-HMAC-SHA256 + salt aleatório.
 class PasswordHasher {
   PasswordHasher._();
 

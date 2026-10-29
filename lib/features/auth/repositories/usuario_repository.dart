@@ -17,7 +17,7 @@ class UsuarioRepository {
 
   static const String _msgCredenciais = 'Login ou senha incorretos.';
   static const String _msgRecuperacao =
-      'Login ou cÃ³digo de recuperaÃ§Ã£o invÃ¡lido.';
+      'Login ou código de recuperação inválido.';
 
   Future<bool> existeAlgumUsuario() async {
     final db = await _appDb.database;
@@ -45,7 +45,7 @@ class UsuarioRepository {
     }
     if (loginLimpo.length < 3 || loginLimpo.contains(' ')) {
       throw const AuthException(
-        'O login deve ter pelo menos 3 caracteres e nÃ£o pode ter espaÃ§os.',
+        'O login deve ter pelo menos 3 caracteres e não pode ter espaços.',
       );
     }
     _validarSenha(senha);
@@ -60,7 +60,7 @@ class UsuarioRepository {
     );
 
     if (duplicata) {
-      throw const AuthException('Este login jÃ¡ estÃ¡ em uso.');
+      throw const AuthException('Este login já está em uso.');
     }
 
     final primeiro = !(await existeAlgumUsuario());
@@ -119,7 +119,7 @@ class UsuarioRepository {
     if (!ok) throw const AuthException(_msgCredenciais);
     if ((row['ativo'] as int) != 1) {
       throw const AuthException(
-        'Este usuÃ¡rio estÃ¡ inativo. Procure o administrador.',
+        'Este usuário está inativo. Procure o administrador.',
       );
     }
 
