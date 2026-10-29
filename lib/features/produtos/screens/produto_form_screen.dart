@@ -181,6 +181,15 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
       _inicializado = true;
     }
 
+    if (!modoEdicao && !_inicializado) {
+      final filtro = ref.read(produtoFiltroProvider);
+      final categoriaId = filtro.categoriaId;
+      if (categoriaId != null && categorias.any((c) => c.id == categoriaId)) {
+        _categoriaId = categoriaId;
+      }
+      _inicializado = true;
+    }
+
     List<Categoria> categoriasLista = categorias;
     if (modoEdicao && produto != null) {
       if (!categorias.any((c) => c.id == produto.categoriaId)) {
@@ -306,6 +315,17 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
                     child: Text(
                       produto.ativo ? 'Inativar produto' : 'Reativar produto',
                     ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _carregando
+                        ? null
+                        : () => context.push('/produtos/${produto.id}/movimentar'),
+                    icon: const Icon(Icons.inventory),
+                    label: const Text('Movimentar estoque'),
                   ),
                 ),
               ],
