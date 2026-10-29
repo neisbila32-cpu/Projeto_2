@@ -63,21 +63,48 @@ void main() {
       }
     });
 
-    test('login repetido é recusado (mesmo com maiúsculas e acentos diferentes)',
-      skip: 'BUG: login com acento diferente (joão vs joao) é aceito como único', () async {
+    test('login repetido é recusado (mesmo com maiúsculas e acentos diferentes)', () async {
       await repo.cadastrar(nome: 'João', login: 'joao', senha: 'Senha123');
+
+      // maiúsculas apenas
       try {
         await repo.cadastrar(nome: 'João MAIUSC', login: 'JOAO', senha: 'Senha123');
         fail('Deveria lançar AuthException');
       } on AuthException {
         // esperado
       }
+
+      // acento diferente
       try {
         await repo.cadastrar(nome: 'Joao', login: 'joão', senha: 'Senha123');
         fail('Deveria lançar AuthException');
       } on AuthException {
         // esperado
       }
+
+      // acento e maiúsculas diferentes
+      try {
+        await repo.cadastrar(nome: 'JOAO', login: 'JOÃO', senha: 'Senha123');
+        fail('Deveria lançar AuthException');
+      } on AuthException {
+        // esperado
+      }
+
+      // mesmo login com acento e caixa diferentes
+      try {
+        await repo.cadastrar(nome: 'Joãozinho', login: 'joão', senha: 'Senha123');
+        fail('Deveria lançar AuthException');
+      } on AuthException {
+        // esperado
+      }
+
+      // login diferente deve ser aceito
+      final codigo = await repo.cadastrar(
+        nome: 'Outro',
+        login: 'joao2',
+        senha: 'Senha123',
+      );
+      expect(codigo, isNull);
     });
 
     test('segundo usuário vira operador', () async {

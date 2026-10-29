@@ -7,8 +7,8 @@ Testes de cenários A (`test/cenarios/`), executados com `flutter test`.
 - Total de testes: 51
 - Passou: 50
 - Removido/ajustado: 1 (suposição errada no teste a3 — nome com letra extra não é duplicata)
-- BUG documentado (skip): 1 (a1 — login com acento diferente aceito como único)
-- Resultados: todos os testes passaram (o BUG está marcado com `skip`)
+- BUG documentado (skip): 0
+- Resultados: todos os testes passaram (o BUG da unicidade de login com acento foi corrigido)
 
 ## Tabela de resultados
 
@@ -18,7 +18,7 @@ Testes de cenários A (`test/cenarios/`), executados com `flutter test`.
 | A1: login correto | passou | Autenticação com credenciais válidas retorna o usuário | - |
 | A1: senha errada é rejeitada | passou | Lança AuthException com senha incorreta | - |
 | A1: login inexistente é rejeitado | passou | Lança AuthException para login não cadastrado | - |
-| A1: login repetido é recusado (mesmo com maiúsculas e acentos diferentes) | BUG (skip) | Login com acento diferente (`joão` vs `joao`) é aceito como único; a unicidade ignora acentos | alta |
+| A1: login repetido é recusado (mesmo com maiúsculas e acentos diferentes) | passou | Unicidade de login agora ignora acentos e maiúsculas; `joão`, `JOAO`, `joão` são recusados após `joao`; `joao2` é aceito | - |
 | A1: segundo usuário vira operador | passou | Segundo cadastro recebe perfil 'operador' | - |
 | A1: recuperação por código só funciona para o administrador e gera um código novo | passou | Admin recupera e invalida código antigo; operador não pode recuperar | - |
 | A1: usuário inativo não consegue entrar | passou | Usuário com `ativo = 0` é rejeitado na autenticação | - |
@@ -41,7 +41,7 @@ Testes de cenários A (`test/cenarios/`), executados com `flutter test`.
 
 | # | Teste | Descrição | Gravidade |
 |---|-------|-----------|-----------|
-| 1 | A1 — login repetido é recusado (mesmo com maiúsculas e acentos diferentes) | Cadastro com login `joão` é aceito após `joao` já existir. A validação de unicidade de login normaliza maiúsculas mas **não remove acentos**, permitindo duplicatas de login que diferem apenas por acento. | alta |
+| 1 | A1 — login repetido é recusado (mesmo com maiúsculas e acentos diferentes) | Corrigido: a validação de unicidade de login agora usa `TextoUtils.normalizar`, que ignora acentos e maiúsculas. `joão`, `JOAO`, `joão` são recusados após `joao` já existir. | - |
 
 ## O que foi removido / ajustado
 

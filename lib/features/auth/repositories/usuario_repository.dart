@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:projeto_2/core/database/app_database.dart';
 import 'package:projeto_2/core/utils/password_hasher.dart';
+import 'package:projeto_2/core/utils/texto_utils.dart';
 import 'package:projeto_2/features/auth/models/usuario.dart';
 
 class AuthException implements Exception {
@@ -49,15 +50,16 @@ class UsuarioRepository {
     }
     _validarSenha(senha);
 
-    final existente = await db.query(
+    final loginNovoNormalizado = TextoUtils.normalizar(login);
+    final todos = await db.query(
       'usuarios',
-      columns: ['id'],
-      where: 'login = ?',
-      whereArgs: [loginLimpo],
-      limit: 1,
+      columns: ['login'],
+    );
+    final duplicata = todos.any(
+      (r) => TextoUtils.normalizar(r['login'] as String) == loginNovoNormalizado,
     );
 
-    if (existente.isNotEmpty) {
+    if (duplicata) {
       throw const AuthException('Este login jÃ¡ estÃ¡ em uso.');
     }
 
