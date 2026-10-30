@@ -134,6 +134,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _importarCatalogo(context);
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.backup),
+                title: const Text('Backup e restauração'),
+                onTap: () {
+                  context.pop();
+                  context.push('/backup');
+                },
+              ),
             ],
             const Divider(),
             ListTile(

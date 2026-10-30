@@ -5,6 +5,7 @@ import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/auth/screens/cadastro_screen.dart';
 import 'package:projeto_2/features/auth/screens/login_screen.dart';
 import 'package:projeto_2/features/auth/screens/recuperar_senha_screen.dart';
+import 'package:projeto_2/features/backup/screens/backup_screen.dart';
 import 'package:projeto_2/features/historico/screens/historico_screen.dart';
 import 'package:projeto_2/features/home/screens/home_screen.dart';
 import 'package:projeto_2/features/movimentacoes/screens/movimentacao_form_screen.dart';
@@ -76,6 +77,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/unidades',
         builder: (context, state) => const UnidadesScreen(),
+      ),
+      GoRoute(
+        path: '/backup',
+        builder: (context, state) => const BackupScreen(),
       ),
       GoRoute(
         path: '/produtos/:id/movimentar',
