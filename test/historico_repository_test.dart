@@ -124,5 +124,34 @@ void main() {
             reason: '$atual deve ser >= que $proximo');
       }
     });
+
+    test('paginação com 120 itens e limite 50', () async {
+      await db.delete('movimentacoes');
+      for (var i = 0; i < 120; i++) {
+        await _inserirMov(
+          produtoId: produtoAId,
+          tipo: 'entrada',
+          delta: 1000,
+          saldoApos: 1000,
+          dataHora:
+              '2026-10-01T00:${(i ~/ 60).toString().padLeft(2, '0')}:${(i % 60).toString().padLeft(2, '0')}',
+        );
+      }
+
+      // Página 1: limite 50
+      final pagina1 = await repository.consultar(const HistoricoFiltro(limite: 50));
+      expect(pagina1.itens.length, 50);
+      expect(pagina1.temMais, isTrue);
+
+      // Página 2: limite 100 (simula "mais itens" via comLimite)
+      final pagina2 = await repository.consultar(const HistoricoFiltro(limite: 100));
+      expect(pagina2.itens.length, 100);
+      expect(pagina2.temMais, isTrue);
+
+      // Página 3: limite 150 (cobre todos os 120)
+      final pagina3 = await repository.consultar(const HistoricoFiltro(limite: 150));
+      expect(pagina3.itens.length, 120);
+      expect(pagina3.temMais, isFalse);
+    });
   });
 }
