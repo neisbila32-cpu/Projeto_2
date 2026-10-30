@@ -16,6 +16,24 @@ class AppDatabase {
 
   Future<Database> get database => _dbFuture ??= _open();
 
+  /// Caminho completo do arquivo do banco.
+  Future<String> caminho() async {
+    final dbPath = await getDatabasesPath();
+    return p.join(dbPath, _dbName);
+  }
+
+  /// Fecha a conexão e zera a instância; o próximo acesso reabre o arquivo.
+  Future<void> fechar() async {
+    final futuro = _dbFuture;
+    _dbFuture = null;
+    if (futuro != null) {
+      try {
+        final db = await futuro;
+        await db.close();
+      } catch (_) {}
+    }
+  }
+
   Future<Database> _open() async {
     final dbPath = await getDatabasesPath();
     final path = p.join(dbPath, _dbName);
