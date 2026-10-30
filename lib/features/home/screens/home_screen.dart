@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
+import 'package:projeto_2/features/historico/providers/historico_providers.dart';
 import 'package:projeto_2/features/produtos/providers/produto_providers.dart';
 import 'package:projeto_2/features/produtos/repositories/catalogo_inicial_repository.dart';
 import 'package:projeto_2/features/produtos/widgets/produtos_lista_view.dart';
@@ -70,6 +71,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () {
                 ref.read(produtoFiltroProvider.notifier).setCategoria(null);
                 context.pop();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Histórico'),
+              onTap: () {
+                ref.read(historicoFiltroProvider.notifier).limpar();
+                context.pop();
+                context.push('/historico');
               },
             ),
             categoriasAsync.when(
