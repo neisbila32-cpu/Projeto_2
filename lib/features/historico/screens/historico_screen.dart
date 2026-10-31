@@ -387,7 +387,7 @@ Widget _historicoItem(HistoricoItem item) {
   final cor = m.delta > 0 ? Colors.green : Colors.red;
   final sinal = m.delta > 0 ? '+' : '-';
   final quantidade =
-      '$sinal${QuantidadeUtils.format(m.delta.abs(), fracionavel: item.fracionavel)} $item.unidadeSigla';
+      '$sinal${QuantidadeUtils.format(m.delta.abs(), fracionavel: item.fracionavel)} ${item.unidadeSigla}';
   final saldoTexto =
       'Saldo após: ${QuantidadeUtils.format(m.saldoApos, fracionavel: item.fracionavel)} ${item.unidadeSigla}';
   final tipoTexto = m.tipo.rotulo +

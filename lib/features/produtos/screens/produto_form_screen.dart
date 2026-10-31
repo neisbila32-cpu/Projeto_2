@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -226,43 +226,101 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
       appBar: AppBar(
         title: Text(modoEdicao ? 'Editar produto' : 'Novo produto'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                controller: _nomeController,
-                decoration: const InputDecoration(labelText: 'Nome'),
-                validator: (valor) {
-                  if (valor == null || valor.trim().isEmpty) {
-                    return 'Informe o nome do produto.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                value: _categoriaId,
-                items: categoriasLista.map((categoria) {
-                  return DropdownMenuItem<int>(
-                    value: categoria.id,
-                    child: Text(
-                      categoria.ativa
-                          ? categoria.nome
-                          : '${categoria.nome} (inativa)',
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Nome',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
-                  );
-                }).toList(),
-                onChanged: (valor) {
-                  setState(() => _categoriaId = valor);
-                },
-                decoration: const InputDecoration(labelText: 'Categoria'),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: _nomeController,
+                      decoration: const InputDecoration(hintText: 'Nome'),
+                      validator: (valor) {
+                        if (valor == null || valor.trim().isEmpty) {
+                          return 'Informe o nome do produto.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                value: _unidadeId,
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Categoria',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<int>(
+                      value: _categoriaId,
+                      items: categoriasLista.map((categoria) {
+                        return DropdownMenuItem<int>(
+                          value: categoria.id,
+                          child: Text(
+                            categoria.ativa
+                                ? categoria.nome
+                                : '${categoria.nome} (inativa)',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (valor) {
+                        setState(() => _categoriaId = valor);
+                      },
+                      decoration: const InputDecoration(hintText: 'Categoria'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Unidade de medida',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<int>(
+                      value: _unidadeId,
                 items: unidadesLista.map((unidade) {
                   return DropdownMenuItem<int>(
                     value: unidade.id,
@@ -275,45 +333,60 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
                         setState(() => _unidadeId = valor);
                       },
                 decoration: InputDecoration(
-                  labelText: 'Unidade',
+                  hintText: 'Unidade de medida',
                   helperText: unidadeBloqueada
                       ? 'Unidade bloqueada: o produto j\u00e1 tem movimenta\u00e7\u00f5es.'
                       : null,
                 ),
               ),
-              const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               if (modoEdicao && produto != null) ...[
-                Text(
-                  'Saldo atual: ${produto.saldoFormatado}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Saldo atual: ${produto.saldoFormatado}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
               ],
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _carregando ? null : _salvar,
-                  child: _carregando
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Salvar'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  height: 56,
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _carregando ? null : _salvar,
+                    child: _carregando
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Salvar'),
+                  ),
                 ),
               ),
               if (modoEdicao && produto != null) ...[
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _carregando
-                        ? null
-                        : () => _definirAtivo(produto.ativo),
-                    child: Text(
-                      produto.ativo ? 'Inativar produto' : 'Reativar produto',
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    height: 52,
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _carregando
+                          ? null
+                          : () => _definirAtivo(produto.ativo),
+                      child: Text(
+                        produto.ativo ? 'Inativar produto' : 'Reativar produto',
+                      ),
                     ),
                   ),
                 ),
@@ -322,6 +395,7 @@ class _ProdutoFormScreenState extends ConsumerState<ProdutoFormScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

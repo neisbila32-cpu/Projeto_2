@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -175,137 +175,250 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        produto.categoriaNome.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.6,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        produto.nome,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            'Saldo atual',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${QuantidadeUtils.format(produto.saldo, fracionavel: fracionavel)} $sigla',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Tipo de movimentação',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                            ),
+                  child: Row(
+                    children: [
+                      _TipoSegment(
+                        rotulo: 'Entrada',
+                        selecionado: _tipo == TipoMovimentacao.entrada,
+                        ativo: ativo && !_carregando,
+                        onSelecionado: () =>
+                            setState(() => _tipo = TipoMovimentacao.entrada),
+                      ),
+                      _TipoSegment(
+                        rotulo: 'Saída',
+                        selecionado: _tipo == TipoMovimentacao.saida,
+                        ativo: ativo && !_carregando,
+                        onSelecionado: () =>
+                            setState(() => _tipo = TipoMovimentacao.saida),
+                      ),
+                      _TipoSegment(
+                        rotulo: 'Perda',
+                        selecionado: _tipo == TipoMovimentacao.perda,
+                        ativo: ativo && !_carregando,
+                        onSelecionado: () =>
+                            setState(() => _tipo = TipoMovimentacao.perda),
+                      ),
+                      _TipoSegment(
+                        rotulo: 'Ajuste',
+                        selecionado: _tipo == TipoMovimentacao.ajuste,
+                        ativo: ativo && !_carregando,
+                        onSelecionado: () =>
+                            setState(() => _tipo = TipoMovimentacao.ajuste),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Text(
+                          rotuloQtd,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _qtdController,
+                        decoration: InputDecoration(
+                          hintText: rotuloQtd,
+                          suffixText: sigla,
+                        ),
+                        keyboardType: fracionavel
+                            ? TextInputType.numberWithOptions(decimal: true)
+                            : TextInputType.number,
+                        enabled: ativo && !_carregando,
+                      ),
+                    ],
+                  ),
+                ),
+                if (_tipo == TipoMovimentacao.saida) ...[
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          produto.nome,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(produto.categoriaNome),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Saldo atual: ${QuantidadeUtils.format(produto.saldo, fracionavel: fracionavel)} $sigla',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Text(
+                            'Finalidade',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<FinalidadeSaida>(
+                          value: _finalidade,
+                          items: const [
+                            DropdownMenuItem(
+                              value: FinalidadeSaida.producao,
+                              child: Text('Produção'),
+                            ),
+                            DropdownMenuItem(
+                              value: FinalidadeSaida.transferencia,
+                              child: Text('Transferência'),
+                            ),
+                            DropdownMenuItem(
+                              value: FinalidadeSaida.outra,
+                              child: Text('Outra'),
+                            ),
+                          ],
+                          onChanged: ativo && !_carregando
+                              ? (valor) => setState(() => _finalidade = valor)
+                              : null,
+                          decoration: const InputDecoration(),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Tipo de movimentação',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<TipoMovimentacao>(
-                  segments: const [
-                    ButtonSegment(
-                      value: TipoMovimentacao.entrada,
-                      label: Text('Entrada'),
-                      icon: Icon(Icons.add),
-                    ),
-                    ButtonSegment(
-                      value: TipoMovimentacao.saida,
-                      label: Text('Saída'),
-                      icon: Icon(Icons.remove),
-                    ),
-                    ButtonSegment(
-                      value: TipoMovimentacao.perda,
-                      label: Text('Perda'),
-                      icon: Icon(Icons.delete),
-                    ),
-                    ButtonSegment(
-                      value: TipoMovimentacao.ajuste,
-                      label: Text('Ajuste'),
-                      icon: Icon(Icons.edit),
-                    ),
-                  ],
-                  selected: {_tipo},
-                  onSelectionChanged: ativo && !_carregando
-                      ? (selecao) {
-                          if (selecao.isNotEmpty) {
-                            setState(() => _tipo = selecao.first);
-                          }
-                        }
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _qtdController,
-                  decoration: InputDecoration(
-                    labelText: rotuloQtd,
-                    suffixText: sigla,
-                  ),
-                  keyboardType: fracionavel
-                      ? TextInputType.numberWithOptions(decimal: true)
-                      : TextInputType.number,
-                  enabled: ativo && !_carregando,
-                ),
-                if (_tipo == TipoMovimentacao.saida) ...[
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<FinalidadeSaida>(
-                    value: _finalidade,
-                    items: const [
-                      DropdownMenuItem(
-                        value: FinalidadeSaida.producao,
-                        child: Text('Produção'),
+                ],
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Text(
+                          _tipo == TipoMovimentacao.perda
+                              ? 'Motivo da perda'
+                              : _tipo == TipoMovimentacao.ajuste
+                                  ? 'Justificativa'
+                                  : 'Observação',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                      DropdownMenuItem(
-                        value: FinalidadeSaida.transferencia,
-                        child: Text('Transferência'),
-                      ),
-                      DropdownMenuItem(
-                        value: FinalidadeSaida.outra,
-                        child: Text('Outra'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _obsController,
+                        decoration: InputDecoration(
+                          hintText: _tipo == TipoMovimentacao.perda
+                              ? 'Motivo da perda'
+                              : _tipo == TipoMovimentacao.ajuste
+                                  ? 'Justificativa'
+                                  : 'Observação',
+                        ),
+                        maxLines: 2,
+                        enabled: ativo && !_carregando,
                       ),
                     ],
-                    onChanged: ativo && !_carregando
-                        ? (valor) => setState(() => _finalidade = valor)
-                        : null,
-                    decoration: const InputDecoration(labelText: 'Finalidade'),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _obsController,
-                  decoration: InputDecoration(
-                    labelText: _tipo == TipoMovimentacao.perda
-                        ? 'Motivo da perda'
-                        : _tipo == TipoMovimentacao.ajuste
-                            ? 'Justificativa'
-                            : 'Observação',
-                  ),
-                  maxLines: 2,
-                  enabled: ativo && !_carregando,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Responsável: ${usuario?.nome ?? ''}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (ativo && !_carregando) ? _registrar : null,
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Responsável: ${usuario?.nome ?? ''}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    height: 56,
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (ativo && !_carregando) ? _registrar : null,
                     child: _carregando
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
                           )
                         : const Text('Registrar'),
                   ),
+                ),
                 ),
                 if (!ativo) ...[
                   const SizedBox(height: 8),
@@ -317,10 +430,16 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                     textAlign: TextAlign.center,
                   ),
                 ],
-                const SizedBox(height: 24),
-                const Text(
-                  'Últimas movimentações',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                const SizedBox(height: 22),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: const Text(
+                    'Últimas movimentações',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 movimentacoesAsync.when(
@@ -352,22 +471,83 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                           fracionavel,
                           sigla,
                         );
-                        return Card(
-                          child: ListTile(
-                            title: Text('$tipoLabel$finalidadeLabel'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$deltaLabel · saldo após: ${QuantidadeUtils.format(m.saldoApos, fracionavel: fracionavel)} $sigla',
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: m.delta > 0
+                                      ? Theme.of(context).colorScheme.primaryContainer
+                                      : Theme.of(context).colorScheme.tertiaryContainer,
+                                  shape: BoxShape.circle,
                                 ),
-                                Text(
-                                  '${_formatarDataHora(m.dataHora)} · ${m.usuarioNome ?? ''}',
+                                child: Center(
+                                  child: Text(
+                                    m.delta > 0 ? '+' : '−',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: m.delta > 0
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).colorScheme.tertiary,
+                                    ),
+                                  ),
                                 ),
-                                if (m.observacao != null && m.observacao!.isNotEmpty)
-                                  Text('Obs: ${m.observacao}'),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$tipoLabel$finalidadeLabel',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${_formatarDataHora(m.dataHora)} · ${m.usuarioNome ?? ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    if (m.observacao != null && m.observacao!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text('Obs: ${m.observacao}'),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    deltaLabel,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: m.delta > 0
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).colorScheme.tertiary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'saldo ${QuantidadeUtils.format(m.saldoApos, fracionavel: fracionavel)} $sigla',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -379,6 +559,54 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _TipoSegment({
+    required String rotulo,
+    required bool selecionado,
+    required bool ativo,
+    required VoidCallback onSelecionado,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selecionado,
+        child: InkWell(
+          onTap: ativo ? onSelecionado : null,
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selecionado && ativo
+                  ? colorScheme.surfaceContainerLowest
+                  : colorScheme.surface.withValues(alpha: 0),
+                  boxShadow: selecionado && ativo
+                  ? [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.08),
+                        offset: const Offset(0, 1),
+                        blurRadius: 4,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              rotulo,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: selecionado ? FontWeight.w600 : FontWeight.w500,
+                color: selecionado && ativo
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
