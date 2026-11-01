@@ -132,6 +132,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 context.push('/historico');
               },
             ),
+            _ItemMenu(
+              titulo: 'Painel',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/painel');
+              },
+            ),
             categoriasAsync.when(
               data: (categorias) => Column(
                 mainAxisSize: MainAxisSize.min,
