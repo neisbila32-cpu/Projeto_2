@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:projeto_2/core/theme/categoria_cores.dart';
 import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/painel/models/painel_dados.dart';
 import 'package:projeto_2/features/painel/providers/painel_providers.dart';
@@ -210,6 +211,14 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
+          if (_rankingProdutos)
+            const SizedBox(height: 6),
+          if (_rankingProdutos)
+            Text(
+              'Cor = categoria do produto',
+              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+            ),
+          if (_rankingProdutos) const SizedBox(height: 12),
           if (itens.isEmpty)
             Text(
               'Sem saídas no período.',
@@ -217,6 +226,19 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             )
           else
             ...itens.map((item) => _linhaRanking(colorScheme, item, maxSaidas)),
+          if (_rankingProdutos && itens.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: itens
+                  .where((item) => item.categoria != null)
+                  .map((item) => item.categoria!)
+                  .toSet()
+                  .map((categoria) => _legendaCategoria(categoria, colorScheme))
+                  .toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -298,11 +320,30 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.nome,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: CategoriaCores.de(
+                          item.categoria ?? item.nome,
+                          Theme.of(context).brightness,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.nome,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
                 if (_rankingProdutos) ...[
                   const SizedBox(height: 4),
@@ -327,7 +368,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
                 widthFactor: fator,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.primary,
+                    color: CategoriaCores.de(
+                      item.categoria ?? item.nome,
+                      Theme.of(context).brightness,
+                    ),
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
@@ -474,5 +518,26 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
       default:
         return '';
     }
+  }
+
+  Widget _legendaCategoria(String categoria, ColorScheme colorScheme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: CategoriaCores.de(categoria, Theme.of(context).brightness),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          categoria,
+          style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
   }
 }

@@ -189,6 +189,18 @@ void main() {
       expect(dados.porProduto[0].nome, 'Arroz');
       expect(dados.porProduto[1].nome, 'Sabão');
     });
+
+    test('cada produto traz a categoria preenchida', () async {
+      final dados = await repository.carregar(intervalo);
+      for (final p in dados.porProduto) {
+        expect(p.categoria, isNotNull);
+        expect(p.categoria, isNotEmpty);
+      }
+      final arroz = dados.porProduto.firstWhere((p) => p.nome == 'Arroz');
+      expect(arroz.categoria, 'Gêneros secos');
+      final sabao = dados.porProduto.firstWhere((p) => p.nome == 'Sabão');
+      expect(sabao.categoria, 'Perecíveis');
+    });
   });
 
   group('fronteira do intervalo', () {

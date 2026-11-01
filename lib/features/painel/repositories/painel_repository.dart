@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+﻿import 'package:sqflite/sqflite.dart';
 import 'package:projeto_2/features/painel/models/painel_dados.dart';
 
 class PainelRepository {
@@ -57,10 +57,11 @@ class PainelRepository {
 
     final produtos = await db.rawQuery(
       'SELECT p.nome AS nome, un.sigla AS sigla, un.fracionavel AS fracionavel, '
-      'COUNT(*) AS total, -SUM(m.delta) AS quantidade '
+      'c.nome AS categoria, COUNT(*) AS total, -SUM(m.delta) AS quantidade '
       'FROM movimentacoes m '
       'JOIN produtos p ON p.id = m.produto_id '
       'JOIN unidades un ON un.id = p.unidade_id '
+      'JOIN categorias c ON c.id = p.categoria_id '
       "WHERE m.tipo = 'saida' AND $_periodo "
       'GROUP BY p.id '
       'ORDER BY total DESC, quantidade DESC, p.nome COLLATE NOCASE LIMIT ?',
@@ -88,12 +89,14 @@ class PainelRepository {
           .map((l) => ItemRanking(
                 nome: l['nome'] as String,
                 saidas: l['total'] as int,
+                categoria: l['nome'] as String,
               ))
           .toList(),
       porProduto: produtos
           .map((l) => ItemRanking(
                 nome: l['nome'] as String,
                 saidas: l['total'] as int,
+                categoria: l['categoria'] as String,
                 quantidade: l['quantidade'] as int,
                 unidadeSigla: l['sigla'] as String,
                 fracionavel: (l['fracionavel'] as int) == 1,

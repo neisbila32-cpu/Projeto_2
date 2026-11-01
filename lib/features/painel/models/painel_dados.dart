@@ -44,6 +44,7 @@ class ResumoMovimentos {
 class ItemRanking {
   final String nome;
   final int saidas; // número de saídas registradas
+  final String? categoria; // nome da categoria do item
   final int? quantidade; // milésimos, positiva; só no ranking de produtos
   final String? unidadeSigla;
   final bool fracionavel;
@@ -51,6 +52,7 @@ class ItemRanking {
   const ItemRanking({
     required this.nome,
     required this.saidas,
+    this.categoria,
     this.quantidade,
     this.unidadeSigla,
     this.fracionavel = false,

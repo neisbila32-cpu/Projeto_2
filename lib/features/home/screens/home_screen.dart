@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:projeto_2/core/theme/categoria_cores.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/historico/providers/historico_providers.dart';
@@ -413,9 +414,7 @@ class _ItemCategoria extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: selected
-                        ? colorScheme.primary
-                        : colorScheme.primary.withValues(alpha: 0.35),
+                    color: CategoriaCores.de(nome, Theme.of(context).brightness),
                     shape: BoxShape.circle,
                   ),
                 ),
