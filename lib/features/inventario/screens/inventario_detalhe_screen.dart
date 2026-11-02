@@ -34,6 +34,7 @@ class _InventarioDetalheScreenState
     ref.invalidate(inventariosProvider);
     ref.invalidate(inventarioPorIdProvider(widget.inventarioId));
     ref.invalidate(itensInventarioProvider(widget.inventarioId));
+    ref.invalidate(auditoriaInventarioProvider(widget.inventarioId));
   }
 
   void _invalidarEstoque() {
@@ -90,7 +91,9 @@ class _InventarioDetalheScreenState
   }
 
   Future<void> _recontar(ItemInventario it) async {
-    final p = await ref.read(produtoRepositoryProvider).buscarPorId(it.produtoId);
+    final p = await ref
+        .read(produtoRepositoryProvider)
+        .buscarPorId(it.produtoId);
     if (!mounted || p == null) return;
     await _abrirContagem(p);
   }
@@ -110,16 +113,20 @@ class _InventarioDetalheScreenState
                   Expanded(
                     child: Consumer(
                       builder: (context, ref, _) {
-                        final n = ref
-                                .watch(itensInventarioProvider(
-                                    widget.inventarioId))
+                        final n =
+                            ref
+                                .watch(
+                                  itensInventarioProvider(widget.inventarioId),
+                                )
                                 .value
                                 ?.length ??
                             0;
                         return Text(
                           'Escolha o produto · $n contados',
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         );
                       },
                     ),
@@ -149,8 +156,9 @@ class _InventarioDetalheScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover contagem?'),
-        content:
-            Text('A contagem de "${it.produtoNome}" será removida deste inventário.'),
+        content: Text(
+          'A contagem de "${it.produtoNome}" será removida deste inventário.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -170,8 +178,9 @@ class _InventarioDetalheScreenState
       _invalidarInventario();
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -202,10 +211,9 @@ class _InventarioDetalheScreenState
     if (usuario == null) return;
     setState(() => _finalizando = true);
     try {
-      final r = await ref.read(inventarioRepositoryProvider).finalizar(
-            inventarioId: widget.inventarioId,
-            usuarioId: usuario.id,
-          );
+      final r = await ref
+          .read(inventarioRepositoryProvider)
+          .finalizar(inventarioId: widget.inventarioId, usuarioId: usuario.id);
       _invalidarInventario();
       _invalidarEstoque();
       if (!mounted) return;
@@ -217,24 +225,25 @@ class _InventarioDetalheScreenState
       context.pop();
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _finalizando = false);
     }
   }
 
   BoxDecoration _decoracao(ColorScheme cs) => BoxDecoration(
-        color: cs.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.06),
-            offset: const Offset(0, 1),
-            blurRadius: 2,
-          ),
-        ],
-      );
+    color: cs.surfaceContainerLowest,
+    borderRadius: BorderRadius.circular(24),
+    boxShadow: [
+      BoxShadow(
+        color: cs.shadow.withValues(alpha: 0.06),
+        offset: const Offset(0, 1),
+        blurRadius: 2,
+      ),
+    ],
+  );
 
   Widget _pilula(String texto, Color fundo, Color cor) {
     return Container(
@@ -262,15 +271,23 @@ class _InventarioDetalheScreenState
             children: [
               inv.emAndamento
                   ? _pilula(
-                      'Em andamento', cs.primaryContainer, cs.onPrimaryContainer)
+                      'Em andamento',
+                      cs.primaryContainer,
+                      cs.onPrimaryContainer,
+                    )
                   : _pilula(
-                      'Finalizado', cs.surfaceContainerHigh, cs.onSurfaceVariant),
+                      'Finalizado',
+                      cs.surfaceContainerHigh,
+                      cs.onSurfaceVariant,
+                    ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   FormatoInventario.dataHora(inv.dataHora),
                   style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -323,17 +340,21 @@ class _InventarioDetalheScreenState
     final fundo = div > 0
         ? cs.primaryContainer
         : div < 0
-            ? cs.tertiaryContainer
-            : cs.surfaceContainerHigh;
+        ? cs.tertiaryContainer
+        : cs.surfaceContainerHigh;
     final cor = div > 0
         ? cs.onPrimaryContainer
         : div < 0
-            ? cs.onTertiaryContainer
-            : cs.onSurfaceVariant;
-    final sistema =
-        QuantidadeUtils.format(it.qtdSistema, fracionavel: it.fracionavel);
-    final contado =
-        QuantidadeUtils.format(it.qtdContada, fracionavel: it.fracionavel);
+        ? cs.onTertiaryContainer
+        : cs.onSurfaceVariant;
+    final sistema = QuantidadeUtils.format(
+      it.qtdSistema,
+      fracionavel: it.fracionavel,
+    );
+    final contado = QuantidadeUtils.format(
+      it.qtdContada,
+      fracionavel: it.fracionavel,
+    );
 
     return InkWell(
       onTap: editavel && !_finalizando ? () => _recontar(it) : null,
@@ -350,7 +371,9 @@ class _InventarioDetalheScreenState
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -362,8 +385,10 @@ class _InventarioDetalheScreenState
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         'Justificativa: ${it.justificativa}',
-                        style:
-                            TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   if (it.ajustado)
@@ -437,6 +462,223 @@ class _InventarioDetalheScreenState
     );
   }
 
+  Widget _valorAuditoria(String rotulo, String valor, ColorScheme cs) {
+    return SizedBox(
+      width: 145,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            rotulo,
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 2),
+          Text(valor, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _cartaoAuditoria(ColorScheme cs, AuditoriaItemInventario item) {
+    final delta = item.delta;
+    final temAjuste = item.temAjusteVinculado && delta != null;
+    final positivo = temAjuste && delta > 0;
+    final negativo = temAjuste && delta < 0;
+    final divergenciaFormatada = item.divergencia == 0
+        ? 'Sem divergência'
+        : '${item.divergencia > 0 ? '+' : ''}'
+              '${QuantidadeUtils.format(item.divergencia, fracionavel: item.fracionavel)} ${item.unidadeSigla}';
+    final deltaFormatado = delta == null
+        ? null
+        : '${delta > 0 ? '+' : ''}'
+              '${QuantidadeUtils.format(delta, fracionavel: item.fracionavel)} ${item.unidadeSigla}';
+
+    final status = positivo
+        ? 'Ajuste positivo'
+        : negativo
+        ? 'Ajuste negativo'
+        : item.divergencia == 0
+        ? 'Sem ajuste necessário'
+        : 'Sem ajuste vinculado';
+    final fundoStatus = positivo
+        ? cs.primaryContainer
+        : negativo
+        ? cs.tertiaryContainer
+        : item.divergencia == 0
+        ? cs.surfaceContainerHigh
+        : cs.errorContainer;
+    final corStatus = positivo
+        ? cs.onPrimaryContainer
+        : negativo
+        ? cs.onTertiaryContainer
+        : item.divergencia == 0
+        ? cs.onSurfaceVariant
+        : cs.onErrorContainer;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.produtoNome,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _pilula(status, fundoStatus, corStatus),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _valorAuditoria(
+                  'Saldo do sistema na contagem',
+                  '${QuantidadeUtils.format(item.qtdSistema, fracionavel: item.fracionavel)} ${item.unidadeSigla}',
+                  cs,
+                ),
+                _valorAuditoria(
+                  'Quantidade contada',
+                  '${QuantidadeUtils.format(item.qtdContada, fracionavel: item.fracionavel)} ${item.unidadeSigla}',
+                  cs,
+                ),
+                _valorAuditoria('Divergência', divergenciaFormatada, cs),
+              ],
+            ),
+            if (temAjuste) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1),
+              ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _valorAuditoria(
+                    'Saldo antes do ajuste',
+                    '${QuantidadeUtils.format(item.saldoAntesAjuste!, fracionavel: item.fracionavel)} ${item.unidadeSigla}',
+                    cs,
+                  ),
+                  _valorAuditoria('Delta aplicado', deltaFormatado!, cs),
+                  _valorAuditoria(
+                    'Saldo após o ajuste',
+                    '${QuantidadeUtils.format(item.saldoApos!, fracionavel: item.fracionavel)} ${item.unidadeSigla}',
+                    cs,
+                  ),
+                ],
+              ),
+              if (item.justificativaAjuste != null &&
+                  item.justificativaAjuste!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Justificativa: ${item.justificativaAjuste}'),
+              ],
+              if (item.dataHoraAjuste != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Registrado em ${FormatoInventario.dataHora(item.dataHoraAjuste!)}'
+                  '${item.usuarioAjusteNome == null ? '' : ' · Responsável: ${item.usuarioAjusteNome}'}',
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ] else if (item.divergencia == 0) ...[
+              const SizedBox(height: 10),
+              Text(
+                'A quantidade contada coincide com o saldo do sistema. Nenhum ajuste foi necessário.',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
+            ] else ...[
+              const SizedBox(height: 10),
+              Text(
+                'Há divergência na contagem, mas não foi encontrado um movimento de ajuste vinculado a este inventário.',
+                style: TextStyle(color: corStatus),
+              ),
+              if (item.justificativaContagem != null &&
+                  item.justificativaContagem!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Justificativa da contagem: ${item.justificativaContagem}',
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _auditoria(ColorScheme cs) {
+    final auditoria = ref.watch(
+      auditoriaInventarioProvider(widget.inventarioId),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+          child: Text(
+            'Auditoria dos ajustes',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        auditoria.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Não foi possível carregar a auditoria do inventário.',
+              ),
+              TextButton(
+                onPressed: () => ref.invalidate(
+                  auditoriaInventarioProvider(widget.inventarioId),
+                ),
+                child: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+          data: (itens) {
+            if (itens.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Este inventário não possui itens registrados.'),
+              );
+            }
+            return Column(
+              children: [for (final item in itens) _cartaoAuditoria(cs, item)],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _conteudoItens(ColorScheme cs, Inventario inventario) {
+    if (!inventario.emAndamento) return _auditoria(cs);
+
+    final itens = ref.watch(itensInventarioProvider(widget.inventarioId));
+    return itens.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => const Text('Erro ao carregar os itens.'),
+      data: (lista) => _itens(cs, lista, true),
+    );
+  }
+
   Widget _erro() {
     return Center(
       child: Column(
@@ -456,7 +698,6 @@ class _InventarioDetalheScreenState
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final invAsync = ref.watch(inventarioPorIdProvider(widget.inventarioId));
-    final itensAsync = ref.watch(itensInventarioProvider(widget.inventarioId));
     final emAndamento = invAsync.value?.emAndamento ?? false;
 
     return Scaffold(
@@ -483,14 +724,7 @@ class _InventarioDetalheScreenState
               children: [
                 _cabecalho(cs, inv),
                 const SizedBox(height: 20),
-                itensAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                  error: (e, _) => const Text('Erro ao carregar os itens.'),
-                  data: (itens) => _itens(cs, itens, inv.emAndamento),
-                ),
+                _conteudoItens(cs, inv),
               ],
             ),
           );
@@ -547,8 +781,10 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
     super.initState();
     final atual = widget.itemAtual;
     if (atual != null) {
-      _qtd.text = QuantidadeUtils.format(atual.qtdContada,
-          fracionavel: widget.produto.unidadeFracionavel);
+      _qtd.text = QuantidadeUtils.format(
+        atual.qtdContada,
+        fracionavel: widget.produto.unidadeFracionavel,
+      );
       _just.text = atual.justificativa ?? '';
     }
   }
@@ -562,8 +798,10 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
 
   Future<void> _salvar() async {
     final p = widget.produto;
-    final contada =
-        QuantidadeUtils.parse(_qtd.text, fracionavel: p.unidadeFracionavel);
+    final contada = QuantidadeUtils.parse(
+      _qtd.text,
+      fracionavel: p.unidadeFracionavel,
+    );
     if (contada == null) {
       setState(() {
         _erro = p.unidadeFracionavel
@@ -577,7 +815,9 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
       _erro = null;
     });
     try {
-      await ref.read(inventarioRepositoryProvider).registrarContagem(
+      await ref
+          .read(inventarioRepositoryProvider)
+          .registrarContagem(
             inventarioId: widget.inventarioId,
             produtoId: p.id,
             qtdContada: contada,
@@ -598,8 +838,10 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final p = widget.produto;
-    final contada =
-        QuantidadeUtils.parse(_qtd.text, fracionavel: p.unidadeFracionavel);
+    final contada = QuantidadeUtils.parse(
+      _qtd.text,
+      fracionavel: p.unidadeFracionavel,
+    );
     final divergencia = contada == null ? null : contada - p.saldo;
 
     String? textoDiv;
@@ -609,8 +851,10 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
         textoDiv = 'Sem divergência';
       } else {
         final sinal = divergencia > 0 ? '+' : '-';
-        final valor = QuantidadeUtils.format(divergencia.abs(),
-            fracionavel: p.unidadeFracionavel);
+        final valor = QuantidadeUtils.format(
+          divergencia.abs(),
+          fracionavel: p.unidadeFracionavel,
+        );
         textoDiv = 'Divergência: $sinal$valor ${p.unidadeSigla}';
         corDiv = divergencia > 0 ? cs.primary : cs.tertiary;
       }
@@ -633,7 +877,8 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
               controller: _qtd,
               autofocus: true,
               keyboardType: TextInputType.numberWithOptions(
-                  decimal: p.unidadeFracionavel),
+                decimal: p.unidadeFracionavel,
+              ),
               decoration: InputDecoration(
                 hintText: '0',
                 suffixText: p.unidadeSigla,
@@ -667,10 +912,7 @@ class _DialogoContagemState extends ConsumerState<_DialogoContagem> {
             ],
             if (_erro != null) ...[
               const SizedBox(height: 10),
-              Text(
-                _erro!,
-                style: TextStyle(fontSize: 13, color: cs.error),
-              ),
+              Text(_erro!, style: TextStyle(fontSize: 13, color: cs.error)),
             ],
           ],
         ),

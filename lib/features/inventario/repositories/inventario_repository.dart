@@ -23,7 +23,8 @@ class InventarioRepository {
   Future<Inventario?> emAndamento() async {
     final db = await _obterBanco();
     final l = await db.rawQuery(
-        "$_selectInventario WHERE i.status = 'em_andamento' ORDER BY i.id DESC LIMIT 1");
+      "$_selectInventario WHERE i.status = 'em_andamento' ORDER BY i.id DESC LIMIT 1",
+    );
     return l.isEmpty ? null : Inventario.fromMap(l.first);
   }
 
@@ -35,8 +36,10 @@ class InventarioRepository {
 
   Future<List<Inventario>> listar({int limite = 50}) async {
     final db = await _obterBanco();
-    final l = await db
-        .rawQuery('$_selectInventario ORDER BY i.id DESC LIMIT ?', [limite]);
+    final l = await db.rawQuery(
+      '$_selectInventario ORDER BY i.id DESC LIMIT ?',
+      [limite],
+    );
     return l.map(Inventario.fromMap).toList();
   }
 
@@ -54,14 +57,43 @@ class InventarioRepository {
     return l.map(ItemInventario.fromMap).toList();
   }
 
+  Future<List<AuditoriaItemInventario>> auditoria(int inventarioId) async {
+    final db = await _obterBanco();
+    final linhas = await db.rawQuery(
+      'SELECT i.id AS item_id, i.inventario_id AS inventario_id, '
+      'i.produto_id AS produto_id, p.nome AS produto_nome, '
+      'un.sigla AS unidade_sigla, un.fracionavel AS fracionavel, '
+      'i.qtd_sistema AS qtd_sistema, i.qtd_contada AS qtd_contada, '
+      'i.divergencia AS divergencia, '
+      'i.justificativa AS justificativa_contagem, '
+      'm.id AS ajuste_id, m.delta AS delta, m.saldo_apos AS saldo_apos, '
+      'm.data_hora AS ajuste_data_hora, '
+      'm.usuario_id AS ajuste_usuario_id, '
+      'u.nome AS ajuste_usuario_nome, '
+      'm.observacao AS justificativa_ajuste '
+      'FROM itens_inventario i '
+      'JOIN produtos p ON p.id = i.produto_id '
+      'JOIN unidades un ON un.id = p.unidade_id '
+      "LEFT JOIN movimentacoes m ON m.inventario_id = i.inventario_id "
+      "AND m.produto_id = i.produto_id AND m.tipo = 'ajuste' "
+      'LEFT JOIN usuarios u ON u.id = m.usuario_id '
+      'WHERE i.inventario_id = ? '
+      'ORDER BY p.nome COLLATE NOCASE, m.id',
+      [inventarioId],
+    );
+    return linhas.map(AuditoriaItemInventario.fromMap).toList();
+  }
+
   Future<int> iniciar({required int usuarioId, String? observacao}) async {
     final db = await _obterBanco();
     return db.transaction<int>((txn) async {
       final abertos = await txn.rawQuery(
-          "SELECT id FROM inventarios WHERE status = 'em_andamento' LIMIT 1");
+        "SELECT id FROM inventarios WHERE status = 'em_andamento' LIMIT 1",
+      );
       if (abertos.isNotEmpty) {
         throw AppException(
-            'Já existe um inventário em andamento. Finalize-o antes de iniciar outro.');
+          'Já existe um inventário em andamento. Finalize-o antes de iniciar outro.',
+        );
       }
       final obs = observacao?.trim();
       return txn.insert('inventarios', {
@@ -74,9 +106,15 @@ class InventarioRepository {
   }
 
   Future<void> _exigirEmAndamento(
-      DatabaseExecutor txn, int inventarioId) async {
-    final l = await txn.query('inventarios',
-        columns: ['status'], where: 'id = ?', whereArgs: [inventarioId]);
+    DatabaseExecutor txn,
+    int inventarioId,
+  ) async {
+    final l = await txn.query(
+      'inventarios',
+      columns: ['status'],
+      where: 'id = ?',
+      whereArgs: [inventarioId],
+    );
     if (l.isEmpty) {
       throw AppException('Inventário não encontrado.');
     }
@@ -120,14 +158,17 @@ class InventarioRepository {
         'qtd_sistema': saldo,
         'qtd_contada': qtdContada,
         'divergencia': divergencia,
-        'justificativa':
-            (divergencia == 0 || just == null || just.isEmpty) ? null : just,
+        'justificativa': (divergencia == 0 || just == null || just.isEmpty)
+            ? null
+            : just,
         'ajustado': 0,
       };
-      final existente = await txn.query('itens_inventario',
-          columns: ['id'],
-          where: 'inventario_id = ? AND produto_id = ?',
-          whereArgs: [inventarioId, produtoId]);
+      final existente = await txn.query(
+        'itens_inventario',
+        columns: ['id'],
+        where: 'inventario_id = ? AND produto_id = ?',
+        whereArgs: [inventarioId, produtoId],
+      );
       if (existente.isEmpty) {
         await txn.insert('itens_inventario', {
           'inventario_id': inventarioId,
@@ -135,8 +176,12 @@ class InventarioRepository {
           ...valores,
         });
       } else {
-        await txn.update('itens_inventario', valores,
-            where: 'id = ?', whereArgs: [existente.first['id']]);
+        await txn.update(
+          'itens_inventario',
+          valores,
+          where: 'id = ?',
+          whereArgs: [existente.first['id']],
+        );
       }
     });
   }
@@ -145,12 +190,19 @@ class InventarioRepository {
   Future<void> removerItem(int itemId) async {
     final db = await _obterBanco();
     await db.transaction((txn) async {
-      final l = await txn.query('itens_inventario',
-          columns: ['inventario_id'], where: 'id = ?', whereArgs: [itemId]);
+      final l = await txn.query(
+        'itens_inventario',
+        columns: ['inventario_id'],
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
       if (l.isEmpty) return;
       await _exigirEmAndamento(txn, l.first['inventario_id'] as int);
-      await txn
-          .delete('itens_inventario', where: 'id = ?', whereArgs: [itemId]);
+      await txn.delete(
+        'itens_inventario',
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
     });
   }
 
@@ -214,15 +266,24 @@ class InventarioRepository {
         );
         if (alterados != 1) {
           throw AppException(
-              'O saldo de "$nome" mudou durante a finalização. Tente novamente.');
+            'O saldo de "$nome" mudou durante a finalização. Tente novamente.',
+          );
         }
-        await txn.update('itens_inventario', {'ajustado': 1},
-            where: 'id = ?', whereArgs: [it['item_id']]);
+        await txn.update(
+          'itens_inventario',
+          {'ajustado': 1},
+          where: 'id = ?',
+          whereArgs: [it['item_id']],
+        );
         ajustados++;
       }
 
-      await txn.update('inventarios', {'status': 'finalizado'},
-          where: 'id = ?', whereArgs: [inventarioId]);
+      await txn.update(
+        'inventarios',
+        {'status': 'finalizado'},
+        where: 'id = ?',
+        whereArgs: [inventarioId],
+      );
       return ResultadoFinalizacao(ajustados, semDivergencia);
     });
   }

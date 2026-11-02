@@ -8,22 +8,27 @@ final inventarioRepositoryProvider = Provider<InventarioRepository>((ref) {
   return InventarioRepository(() => AppDatabase.instance.database);
 });
 
-final inventarioEmAndamentoProvider =
-    FutureProvider.autoDispose<Inventario?>((ref) {
+final inventarioEmAndamentoProvider = FutureProvider.autoDispose<Inventario?>((
+  ref,
+) {
   return ref.watch(inventarioRepositoryProvider).emAndamento();
 });
 
-final inventariosProvider =
-    FutureProvider.autoDispose<List<Inventario>>((ref) {
+final inventariosProvider = FutureProvider.autoDispose<List<Inventario>>((ref) {
   return ref.watch(inventarioRepositoryProvider).listar();
 });
 
-final inventarioPorIdProvider =
-    FutureProvider.autoDispose.family<Inventario?, int>((ref, id) {
-  return ref.watch(inventarioRepositoryProvider).porId(id);
-});
+final inventarioPorIdProvider = FutureProvider.autoDispose
+    .family<Inventario?, int>((ref, id) {
+      return ref.watch(inventarioRepositoryProvider).porId(id);
+    });
 
 final itensInventarioProvider = FutureProvider.autoDispose
     .family<List<ItemInventario>, int>((ref, inventarioId) {
-  return ref.watch(inventarioRepositoryProvider).itens(inventarioId);
-});
+      return ref.watch(inventarioRepositoryProvider).itens(inventarioId);
+    });
+
+final auditoriaInventarioProvider = FutureProvider.autoDispose
+    .family<List<AuditoriaItemInventario>, int>((ref, inventarioId) {
+      return ref.watch(inventarioRepositoryProvider).auditoria(inventarioId);
+    });
