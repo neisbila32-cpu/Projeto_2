@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
@@ -10,7 +11,12 @@ class PerfilScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usuarioAsync = ref.watch(sessionProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Meu perfil')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Meu perfil'),
+      ),
       body: usuarioAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(
@@ -42,8 +48,9 @@ class PerfilScreen extends ConsumerWidget {
                         child: Text(
                           usuario.nome.isEmpty
                               ? '?'
-                              : String.fromCharCode(usuario.nome.runes.first)
-                                  .toUpperCase(),
+                              : String.fromCharCode(
+                                  usuario.nome.runes.first,
+                                ).toUpperCase(),
                           style: const TextStyle(fontSize: 26),
                         ),
                       ),
@@ -51,7 +58,9 @@ class PerfilScreen extends ConsumerWidget {
                       Text(
                         usuario.nome,
                         style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w600),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(usuario.isAdmin ? 'Administrador' : 'Operador'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/core/utils/app_exception.dart';
@@ -19,11 +20,15 @@ class HistoricoScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filtro = ref.watch(historicoFiltroProvider);
     final historicoAsync = ref.watch(historicoProvider);
-    final produtoAsync =
-        filtro.produtoId == null ? null : ref.watch(produtoPorIdProvider(filtro.produtoId!));
+    final produtoAsync = filtro.produtoId == null
+        ? null
+        : ref.watch(produtoPorIdProvider(filtro.produtoId!));
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
         title: const Text('Histórico de movimentações'),
         actions: [
           if (filtro.temFiltro)
@@ -62,22 +67,22 @@ class HistoricoScreen extends ConsumerWidget {
                   );
                 },
                 data: (pagina) {
-                    if (pagina.itens.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('Nenhuma movimentação encontrada.'),
-                            if (filtro.temFiltro) ...[
-                              const SizedBox(height: 8),
-                              const Text('Tente mudar ou limpar os filtros.'),
-                            ],
+                  if (pagina.itens.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Nenhuma movimentação encontrada.'),
+                          if (filtro.temFiltro) ...[
+                            const SizedBox(height: 8),
+                            const Text('Tente mudar ou limpar os filtros.'),
                           ],
-                        ),
-                      );
-                    }
-                    return _HistoricoLista(pagina: pagina);
-                  },
+                        ],
+                      ),
+                    );
+                  }
+                  return _HistoricoLista(pagina: pagina);
+                },
               ),
             ),
           ),
@@ -104,19 +109,23 @@ class _Filtros extends ConsumerWidget {
 
     final temPeriodo = filtro.inicio != null || filtro.fim != null;
     final tudoSelecionado = filtro.inicio == null && filtro.fim == null;
-    final hojeSelecionado = filtro.inicio != null &&
+    final hojeSelecionado =
+        filtro.inicio != null &&
         filtro.fim != null &&
         _mesmoDia(filtro.inicio!, hoje) &&
         _mesmoDia(filtro.fim!, hoje);
-    final seteSelecionado = filtro.inicio != null &&
+    final seteSelecionado =
+        filtro.inicio != null &&
         filtro.fim != null &&
         _mesmoDia(filtro.inicio!, diaSeis) &&
         _mesmoDia(filtro.fim!, hoje);
-    final trintaSelecionado = filtro.inicio != null &&
+    final trintaSelecionado =
+        filtro.inicio != null &&
         filtro.fim != null &&
         _mesmoDia(filtro.inicio!, diaVinteENove) &&
         _mesmoDia(filtro.fim!, hoje);
-    final mesSelecionado = filtro.inicio != null &&
+    final mesSelecionado =
+        filtro.inicio != null &&
         filtro.fim != null &&
         _mesmoDia(filtro.inicio!, mesInicio) &&
         _mesmoDia(filtro.fim!, hoje);
@@ -168,8 +177,9 @@ class _Filtros extends ConsumerWidget {
               ChoiceChip(
                 label: const Text('Tudo'),
                 selected: tudoSelecionado,
-                onSelected: (_) =>
-                    ref.read(historicoFiltroProvider.notifier).setPeriodo(null, null),
+                onSelected: (_) => ref
+                    .read(historicoFiltroProvider.notifier)
+                    .setPeriodo(null, null),
               ),
               const SizedBox(width: 8),
               ChoiceChip(
@@ -270,10 +280,9 @@ class _Filtros extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (selecionado != null) {
-      ref.read(historicoFiltroProvider.notifier).setPeriodo(
-        selecionado.start,
-        selecionado.end,
-      );
+      ref
+          .read(historicoFiltroProvider.notifier)
+          .setPeriodo(selecionado.start, selecionado.end);
     }
   }
 }
@@ -291,7 +300,9 @@ class _ProdutoFiltroChip extends ConsumerWidget {
       onTap: () => _abrirSeletorProduto(context, ref),
       child: Chip(
         label: _label(),
-        deleteIcon: filtro.produtoId == null ? null : const Icon(Icons.close, size: 18),
+        deleteIcon: filtro.produtoId == null
+            ? null
+            : const Icon(Icons.close, size: 18),
         onDeleted: filtro.produtoId == null
             ? null
             : () => ref.read(historicoFiltroProvider.notifier).setProduto(null),
@@ -353,7 +364,8 @@ class _HistoricoLista extends ConsumerWidget {
           );
         }
         final item = pagina.itens[index];
-        final primeiroDoDia = index == 0 ||
+        final primeiroDoDia =
+            index == 0 ||
             !_mesmoDia(
               pagina.itens[index - 1].movimentacao.dataHora,
               item.movimentacao.dataHora,
@@ -390,11 +402,15 @@ Widget _historicoItem(HistoricoItem item) {
       '$sinal${QuantidadeUtils.format(m.delta.abs(), fracionavel: item.fracionavel)} ${item.unidadeSigla}';
   final saldoTexto =
       'Saldo após: ${QuantidadeUtils.format(m.saldoApos, fracionavel: item.fracionavel)} ${item.unidadeSigla}';
-  final tipoTexto = m.tipo.rotulo +
+  final tipoTexto =
+      m.tipo.rotulo +
       (m.finalidade != null ? ' · ${m.finalidade!.rotulo}' : '');
 
   return ListTile(
-    title: Text(item.produtoNome, style: const TextStyle(fontWeight: FontWeight.bold)),
+    title: Text(
+      item.produtoNome,
+      style: const TextStyle(fontWeight: FontWeight.bold),
+    ),
     subtitle: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -406,8 +422,10 @@ Widget _historicoItem(HistoricoItem item) {
           visualDensity: VisualDensity.compact,
         ),
         const SizedBox(height: 4),
-        Text(quantidade,
-            style: TextStyle(color: cor, fontWeight: FontWeight.bold)),
+        Text(
+          quantidade,
+          style: TextStyle(color: cor, fontWeight: FontWeight.bold),
+        ),
         Text(saldoTexto),
         Text('${_hhmm(m.dataHora)}   ·   Responsável: ${m.usuarioNome ?? '-'}'),
         if (m.observacao?.isNotEmpty == true)
@@ -425,5 +443,3 @@ String _hhmm(DateTime d) =>
 
 bool _mesmoDia(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
-
-

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -66,15 +67,18 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
       if (result.status == ShareResultStatus.success) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('ultimo_backup', DateTime.now().toIso8601String());
+        await prefs.setString(
+          'ultimo_backup',
+          DateTime.now().toIso8601String(),
+        );
         if (!mounted) return;
         _carregarUltimoBackup();
       }
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,10 +142,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           title: const Text('Backup restaurado'),
           content: const Text('Entre novamente com um usuário do backup.'),
           actions: [
-            TextButton(
-              onPressed: () => context.pop(),
-              child: const Text('OK'),
-            ),
+            TextButton(onPressed: () => context.pop(), child: const Text('OK')),
           ],
         ),
       );
@@ -149,9 +150,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       ref.read(sessionProvider.notifier).sair();
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,17 +170,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final usuarioAsync = ref.watch(sessionProvider);
 
     if (usuarioAsync.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final usuario = usuarioAsync.value;
     if (usuario == null || !usuario.isAdmin) {
       return const Scaffold(
-        body: Center(
-          child: Text('Acesso restrito ao administrador.'),
-        ),
+        body: Center(child: Text('Acesso restrito ao administrador.')),
       );
     }
 
@@ -188,7 +185,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         : 'Último backup: ${_formatarDataIso(_ultimoBackupIso)}';
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
         title: const Text('Backup e restauração'),
       ),
       body: Padding(

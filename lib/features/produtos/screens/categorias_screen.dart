@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/core/utils/app_exception.dart';
@@ -175,7 +176,12 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
     final categoriasAsync = ref.watch(categoriasTodasProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Categorias')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Categorias'),
+      ),
       body: categoriasAsync.when(
         data: (categorias) {
           if (categorias.isEmpty) {

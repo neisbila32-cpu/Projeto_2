@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -44,24 +45,25 @@ class _InventarioListaScreenState extends ConsumerState<InventarioListaScreen> {
       _atualizar();
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _iniciando = false);
     }
   }
 
   BoxDecoration _decoracao(ColorScheme cs) => BoxDecoration(
-        color: cs.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.06),
-            offset: const Offset(0, 1),
-            blurRadius: 2,
-          ),
-        ],
-      );
+    color: cs.surfaceContainerLowest,
+    borderRadius: BorderRadius.circular(24),
+    boxShadow: [
+      BoxShadow(
+        color: cs.shadow.withValues(alpha: 0.06),
+        offset: const Offset(0, 1),
+        blurRadius: 2,
+      ),
+    ],
+  );
 
   Widget _pilula(String texto, Color fundo, Color cor) {
     return Container(
@@ -213,7 +215,9 @@ class _InventarioListaScreenState extends ConsumerState<InventarioListaScreen> {
                   Text(
                     'Inventário nº ${inv.id} · ${FormatoInventario.data(inv.dataHora)}',
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -225,16 +229,21 @@ class _InventarioListaScreenState extends ConsumerState<InventarioListaScreen> {
                       inv.observacao!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
             semDivergencia
-                ? _pilula('Sem divergências', cs.surfaceContainerHigh,
-                    cs.onSurfaceVariant)
+                ? _pilula(
+                    'Sem divergências',
+                    cs.surfaceContainerHigh,
+                    cs.onSurfaceVariant,
+                  )
                 : _pilula(
                     inv.totalDivergentes == 1
                         ? '1 divergência'
@@ -255,7 +264,12 @@ class _InventarioListaScreenState extends ConsumerState<InventarioListaScreen> {
     final lista = ref.watch(inventariosProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventário físico')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Inventário físico'),
+      ),
       body: RefreshIndicator(
         onRefresh: () async => _atualizar(),
         child: ListView(

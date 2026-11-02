@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/core/theme/categoria_cores.dart';
@@ -24,7 +25,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     final atalho = ref.watch(painelAtalhoProvider);
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
         title: const Text('Painel'),
       ),
       body: RefreshIndicator(
@@ -52,28 +56,29 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            ref.watch(painelProvider).when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (Object error, StackTrace? stackTrace) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Erro ao carregar o painel.'),
-                      const SizedBox(height: 12),
-                      FilledButton.tonal(
-                        onPressed: () => ref.invalidate(painelProvider),
-                        child: const Text('Tentar novamente'),
+            ref
+                .watch(painelProvider)
+                .when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (Object error, StackTrace? stackTrace) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Erro ao carregar o painel.'),
+                          const SizedBox(height: 12),
+                          FilledButton.tonal(
+                            onPressed: () => ref.invalidate(painelProvider),
+                            child: const Text('Tentar novamente'),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
+                  data: (dados) => _conteudo(colorScheme, dados),
                 ),
-              ),
-              data: (dados) => _conteudo(colorScheme, dados),
-            ),
           ],
         ),
       ),
@@ -95,7 +100,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
               const SizedBox(height: 8),
               Text(
                 'Registre entradas e saídas para ver os gráficos.',
-                style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -162,7 +170,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             const SizedBox(height: 4),
             Text(
               titulo,
-              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -172,15 +183,18 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
 
   Widget _cardRanking(ColorScheme colorScheme, PainelDados dados) {
     final itens = _rankingProdutos ? dados.porProduto : dados.porCategoria;
-    final titulo =
-        _rankingProdutos ? 'Produtos com mais saída' : 'Gêneros com mais saída';
+    final titulo = _rankingProdutos
+        ? 'Produtos com mais saída'
+        : 'Gêneros com mais saída';
     final sombra = BoxShadow(
       offset: const Offset(0, 1),
       blurRadius: 2,
       color: colorScheme.shadow.withValues(alpha: 0.06),
     );
-    final maxSaidas =
-        itens.fold<int>(0, (maximo, item) => item.saidas > maximo ? item.saidas : maximo);
+    final maxSaidas = itens.fold<int>(
+      0,
+      (maximo, item) => item.saidas > maximo ? item.saidas : maximo,
+    );
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -198,7 +212,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
               Expanded(
                 child: Text(
                   titulo,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -211,18 +228,23 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
-          if (_rankingProdutos)
-            const SizedBox(height: 6),
+          if (_rankingProdutos) const SizedBox(height: 6),
           if (_rankingProdutos)
             Text(
               'Cor = categoria do produto',
-              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           if (_rankingProdutos) const SizedBox(height: 12),
           if (itens.isEmpty)
             Text(
               'Sem saídas no período.',
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
             )
           else
             ...itens.map((item) => _linhaRanking(colorScheme, item, maxSaidas)),
@@ -303,7 +325,11 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     );
   }
 
-  Widget _linhaRanking(ColorScheme colorScheme, ItemRanking item, int maxSaidas) {
+  Widget _linhaRanking(
+    ColorScheme colorScheme,
+    ItemRanking item,
+    int maxSaidas,
+  ) {
     final saidas = item.saidas;
     final fator = saidas > 0 && maxSaidas > 0
         ? (saidas / maxSaidas).clamp(0.04, 1.0)
@@ -348,8 +374,12 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
                 if (_rankingProdutos) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${QuantidadeUtils.format(item.quantidade ?? 0, fracionavel: item.fracionavel)} ${item.unidadeSigla ?? ''}'.trim(),
-                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                    '${QuantidadeUtils.format(item.quantidade ?? 0, fracionavel: item.fracionavel)} ${item.unidadeSigla ?? ''}'
+                        .trim(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ],
@@ -385,7 +415,10 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
               alignment: Alignment.centerRight,
               child: Text(
                 saidas.toString(),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -405,7 +438,9 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     for (final d in dias) {
       if (d.total > maxTotal) maxTotal = d.total;
     }
-    final diaMax = maxTotal > 0 ? dias.firstWhere((d) => d.total == maxTotal) : null;
+    final diaMax = maxTotal > 0
+        ? dias.firstWhere((d) => d.total == maxTotal)
+        : null;
     final maisDeSete = dias.length > 7;
     final espaco = maisDeSete ? 2.0 : 10.0;
     final raio = maisDeSete ? 6.0 : 10.0;
@@ -446,7 +481,9 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
                           dia.total.toString(),
                           style: TextStyle(
                             fontSize: isMax ? 12 : 11,
-                            fontWeight: isMax ? FontWeight.w700 : FontWeight.w400,
+                            fontWeight: isMax
+                                ? FontWeight.w700
+                                : FontWeight.w400,
                             color: isMax
                                 ? colorScheme.primary
                                 : colorScheme.onSurfaceVariant,
@@ -473,8 +510,8 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
                       Text(
                         mostrarRotulo
                             ? (maisDeSete
-                                ? '${dia.dia.day}'
-                                : _abreviaDiaSemana(dia.dia.weekday))
+                                  ? '${dia.dia.day}'
+                                  : _abreviaDiaSemana(dia.dia.weekday))
                             : '',
                         style: TextStyle(
                           fontSize: 11,

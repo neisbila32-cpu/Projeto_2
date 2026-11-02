@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/features/configuracoes/providers/tema_provider.dart';
@@ -7,14 +8,18 @@ class ConfiguracoesScreen extends ConsumerWidget {
   const ConfiguracoesScreen({super.key});
 
   Future<void> _definirTema(
-      BuildContext context, WidgetRef ref, ThemeMode tema) async {
+    BuildContext context,
+    WidgetRef ref,
+    ThemeMode tema,
+  ) async {
     try {
       await ref.read(temaProvider.notifier).definir(tema);
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Não foi possível salvar a preferência de tema.')),
+          content: Text('Não foi possível salvar a preferência de tema.'),
+        ),
       );
     }
   }
@@ -23,7 +28,12 @@ class ConfiguracoesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tema = ref.watch(temaProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurações')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Configurações'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -41,7 +51,8 @@ class ConfiguracoesScreen extends ConsumerWidget {
                   Text(
                     'Escolha como o Estoque UAN será exibido neste aparelho.',
                     style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   tema.when(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 
 class TutorialScreen extends StatelessWidget {
   const TutorialScreen({super.key});
@@ -40,14 +41,16 @@ class TutorialScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cores = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Como usar o Estoque UAN')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Como usar o Estoque UAN'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'Guia rápido',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          Text('Guia rápido', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
           Text(
             'Siga estas etapas para manter o estoque da unidade organizado.',

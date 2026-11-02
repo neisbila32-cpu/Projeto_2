@@ -1,14 +1,15 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/relatorios/models/relatorio_dados.dart';
 import 'package:projeto_2/features/relatorios/providers/relatorio_providers.dart';
-import 'package:projeto_2/features/relatorios/services/relatorio_csv.dart';
+import 'package:projeto_2/features/relatorios/services/relatorio_compartilhamento.dart';
+import 'package:projeto_2/features/relatorios/services/relatorio_pdf.dart';
 
 class RelatoriosScreen extends ConsumerStatefulWidget {
   const RelatoriosScreen({super.key});
@@ -34,6 +35,13 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
       '${data.day.toString().padLeft(2, '0')}/'
       '${data.month.toString().padLeft(2, '0')}/${data.year}';
 
+  String _carimbo(DateTime data) =>
+      '${data.year}-${data.month.toString().padLeft(2, '0')}-'
+      '${data.day.toString().padLeft(2, '0')}_'
+      '${data.hour.toString().padLeft(2, '0')}-'
+      '${data.minute.toString().padLeft(2, '0')}-'
+      '${data.second.toString().padLeft(2, '0')}';
+
   Future<void> _selecionarPeriodo() async {
     final hoje = DateTime.now();
     final selecionado = await showDateRangePicker(
@@ -51,16 +59,24 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
     });
   }
 
-  Future<void> _compartilharCsv(String nome, String conteudo) async {
+  Future<void> _compartilharPdf(
+    String nome,
+    Future<Uint8List> Function() gerar,
+  ) async {
     setState(() => _exportando = true);
     try {
-      final arquivo = File(
-        '${Directory.systemTemp.path}${Platform.pathSeparator}$nome',
+      final conteudo = await gerar();
+      final resultado = await RelatorioCompartilhamento().compartilharPdf(
+        conteudo: conteudo,
+        nome: nome,
       );
-      await arquivo.writeAsString(conteudo, encoding: const Utf8Codec());
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(arquivo.path)], text: nome),
-      );
+      if (resultado.status == ShareResultStatus.unavailable && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O compartilhamento não está disponível.'),
+          ),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,8 +98,9 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             TextButton(
               onPressed: () {
                 ref.invalidate(estoqueRelatorioProvider);
-                ref.invalidate(movimentacoesRelatorioProvider(
-                    (inicio: _inicio, fim: _fim)));
+                ref.invalidate(
+                  movimentacoesRelatorioProvider((inicio: _inicio, fim: _fim)),
+                );
               },
               child: const Text('Tentar novamente'),
             ),
@@ -105,17 +122,25 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             Row(
               children: [
                 const Expanded(
-                  child: Text('Posição atual do estoque',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Posição atual do estoque',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
                 ),
                 IconButton(
-                  tooltip: 'Exportar estoque em CSV',
+                  tooltip: 'Exportar estoque em PDF',
                   onPressed: _exportando
                       ? null
-                      : () => _compartilharCsv(
-                            'estoque_uan.csv',
-                            RelatorioCsv.estoque(linhas),
-                          ),
+                      : () async {
+                          final geradoEm = DateTime.now();
+                          await _compartilharPdf(
+                            'relatorio_estoque_gerado_${_carimbo(geradoEm)}.pdf',
+                            () => RelatorioPdf.estoque(
+                              linhas,
+                              geradoEm: geradoEm,
+                            ),
+                          );
+                        },
                   icon: const Icon(Icons.file_download_outlined),
                 ),
               ],
@@ -157,18 +182,29 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             Row(
               children: [
                 const Expanded(
-                  child: Text('Movimentações',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Movimentações',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
                 ),
                 IconButton(
-                  tooltip: 'Exportar movimentações em CSV',
+                  tooltip: 'Exportar movimentações em PDF',
                   onPressed: linhas.isEmpty || _exportando
                       ? null
-                      : () => _compartilharCsv(
-                            'movimentacoes_${_data(_inicio).replaceAll('/', '-')}_'
-                            '${_data(_fim).replaceAll('/', '-')}.csv',
-                            RelatorioCsv.movimentacoes(linhas),
-                          ),
+                      : () async {
+                          final geradoEm = DateTime.now();
+                          await _compartilharPdf(
+                            'relatorio_movimentacoes_'
+                            '${_carimbo(_inicio)}_a_${_carimbo(_fim)}_'
+                            'gerado_${_carimbo(geradoEm)}.pdf',
+                            () => RelatorioPdf.movimentacoes(
+                              linhas,
+                              inicio: _inicio,
+                              fim: _fim,
+                              geradoEm: geradoEm,
+                            ),
+                          );
+                        },
                   icon: const Icon(Icons.file_download_outlined),
                 ),
               ],
@@ -207,7 +243,12 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
     final movimentacoes = ref.watch(movimentacoesRelatorioProvider(periodo));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Relatórios')),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
+        title: const Text('Relatórios'),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(estoqueRelatorioProvider);

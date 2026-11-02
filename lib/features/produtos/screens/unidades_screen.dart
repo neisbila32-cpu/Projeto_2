@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -47,16 +48,16 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
               ),
             ],
           ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => context.pop(true),
-            child: const Text('Salvar'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => context.pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => context.pop(true),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
       ),
     );
@@ -71,19 +72,17 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
     final nome = nomeController.text.trim();
 
     try {
-      await ref.read(unidadeRepositoryProvider).criar(
-        sigla: sigla,
-        nome: nome,
-        fracionavel: fracionavel,
-      );
+      await ref
+          .read(unidadeRepositoryProvider)
+          .criar(sigla: sigla, nome: nome, fracionavel: fracionavel);
       if (!mounted) return;
       ref.invalidate(unidadesTodasProvider);
       ref.invalidate(unidadesAtivasProvider);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,18 +93,15 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
 
   Future<void> _definirAtiva(Unidade unidade, bool ativa) async {
     try {
-      await ref.read(unidadeRepositoryProvider).definirAtiva(
-        unidade.id,
-        ativa,
-      );
+      await ref.read(unidadeRepositoryProvider).definirAtiva(unidade.id, ativa);
       if (!mounted) return;
       ref.invalidate(unidadesTodasProvider);
       ref.invalidate(unidadesAtivasProvider);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,7 +115,10 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
     final unidadesAsync = ref.watch(unidadesTodasProvider);
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: drawerMenuButton(context),
         title: const Text('Unidades de medida'),
       ),
       body: unidadesAsync.when(
@@ -134,9 +133,7 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
               return ListTile(
                 title: Text(
                   '${unidade.nome} (${unidade.sigla})${unidade.ativa ? '' : ' - Inativa'}',
-                  style: TextStyle(
-                    color: unidade.ativa ? null : Colors.grey,
-                  ),
+                  style: TextStyle(color: unidade.ativa ? null : Colors.grey),
                 ),
                 subtitle: Text(
                   unidade.fracionavel
@@ -154,9 +151,7 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: unidade.ativa ? 'inativar' : 'ativar',
-                      child: Text(
-                        unidade.ativa ? 'Inativar' : 'Reativar',
-                      ),
+                      child: Text(unidade.ativa ? 'Inativar' : 'Reativar'),
                     ),
                   ],
                 ),
@@ -165,9 +160,8 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(
-          child: Text('Erro ao carregar unidades.'),
-        ),
+        error: (_, __) =>
+            const Center(child: Text('Erro ao carregar unidades.')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _novaUnidade,
