@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/core/utils/texto_utils.dart';
 import 'package:projeto_2/features/produtos/models/categoria.dart';
 import 'package:projeto_2/features/produtos/models/produto.dart';
@@ -251,7 +252,7 @@ List<Widget> _itensComLinhas(
   return itens;
 }
 
-class _ProdutoItem extends StatelessWidget {
+class _ProdutoItem extends ConsumerWidget {
   const _ProdutoItem({
     required this.produto,
     required this.aoTocar,
@@ -263,7 +264,7 @@ class _ProdutoItem extends StatelessWidget {
   final bool mostrarCategoria;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final ativo = produto.ativo;
     final saldoZero = produto.saldo == 0;
@@ -335,6 +336,60 @@ class _ProdutoItem extends StatelessWidget {
                 ),
               ),
             ),
+            if (aoTocar == null)
+              IconButton(
+                tooltip: 'Excluir produto',
+                color: colorScheme.error,
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () async {
+                  final confirmado = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Excluir produto'),
+                      content: Text(
+                        'Deseja excluir o produto "${produto.nome}"?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Cancelar'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          child: const Text('Excluir'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmado != true || !context.mounted) return;
+                  try {
+                    await ref
+                        .read(produtoRepositoryProvider)
+                        .excluir(produto.id);
+                    ref.invalidate(produtosProvider);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Produto excluído com sucesso.'),
+                      ),
+                    );
+                  } on AppException catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(e.message)));
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Erro inesperado ao excluir produto.'),
+                      ),
+                    );
+                  }
+                },
+              ),
           ],
         ),
       ),
