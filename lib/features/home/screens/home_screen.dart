@@ -141,6 +141,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 context.push('/painel');
               },
             ),
+            _ItemMenu(
+              titulo: 'Inventário físico',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/inventarios');
+              },
+            ),
             categoriasAsync.when(
               data: (categorias) => Column(
                 mainAxisSize: MainAxisSize.min,
