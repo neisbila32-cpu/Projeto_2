@@ -66,32 +66,35 @@ void main() {
       expect(p.ativo, isTrue);
     });
 
-    test('nome duplicado é recusado (arroz branco x Arroz Branco x variações com acento)', () async {
-      await prodRepo.criar(
-        nome: 'arroz branco',
-        categoriaId: categoriaId,
-        unidadeId: unidadeId,
-        usuarioId: usuarioId,
-      );
-      // mesmo nome com maiúscula
-      await deveLancarAppException(
-        () => prodRepo.criar(
-          nome: 'Arroz Branco',
+    test(
+      'nome duplicado é recusado (arroz branco x Arroz Branco x variações com acento)',
+      () async {
+        await prodRepo.criar(
+          nome: 'arroz branco',
           categoriaId: categoriaId,
           unidadeId: unidadeId,
           usuarioId: usuarioId,
-        ),
-      );
-      // variação com acento (â -> a)
-      await deveLancarAppException(
-        () => prodRepo.criar(
-          nome: 'arroz brânco',
-          categoriaId: categoriaId,
-          unidadeId: unidadeId,
-          usuarioId: usuarioId,
-        ),
-      );
-    });
+        );
+        // mesmo nome com maiúscula
+        await deveLancarAppException(
+          () => prodRepo.criar(
+            nome: 'Arroz Branco',
+            categoriaId: categoriaId,
+            unidadeId: unidadeId,
+            usuarioId: usuarioId,
+          ),
+        );
+        // variação com acento (â -> a)
+        await deveLancarAppException(
+          () => prodRepo.criar(
+            nome: 'arroz brânco',
+            categoriaId: categoriaId,
+            unidadeId: unidadeId,
+            usuarioId: usuarioId,
+          ),
+        );
+      },
+    );
 
     test('só inativa com saldo zero; reativa', () async {
       final id = await prodRepo.criar(
@@ -122,6 +125,71 @@ void main() {
       expect(encontrados.any((p) => p.nome == 'Feijão'), isTrue);
     });
 
+    test('exclui produto sem movimentações ou inventários', () async {
+      final id = await prodRepo.criar(
+        nome: 'Produto removível',
+        categoriaId: categoriaId,
+        unidadeId: unidadeId,
+        usuarioId: usuarioId,
+      );
+      await prodRepo.excluir(id);
+      expect(await prodRepo.buscarPorId(id), isNull);
+      expect((await prodRepo.listar()).any((p) => p.id == id), isFalse);
+    });
+
+    test(
+      'impede exclusão de produto com movimentação e preserva histórico',
+      () async {
+        final id = await prodRepo.criar(
+          nome: 'Produto com histórico',
+          categoriaId: categoriaId,
+          unidadeId: unidadeId,
+          usuarioId: usuarioId,
+        );
+        await movRepo.registrar(
+          produtoId: id,
+          tipo: TipoMovimentacao.entrada,
+          valor: 1000,
+          usuarioId: usuarioId,
+        );
+        await deveLancarAppException(() => prodRepo.excluir(id));
+        expect(await prodRepo.buscarPorId(id), isNotNull);
+        expect(await prodRepo.temMovimentacoes(id), isTrue);
+      },
+    );
+
+    test('impede exclusão de produto referenciado em inventário', () async {
+      final id = await prodRepo.criar(
+        nome: 'Produto inventariado',
+        categoriaId: categoriaId,
+        unidadeId: unidadeId,
+        usuarioId: usuarioId,
+      );
+      final inventarioId = await db.insert('inventarios', {
+        'data_hora': DateTime.now().toIso8601String(),
+        'usuario_id': usuarioId,
+        'status': 'finalizado',
+      });
+      await db.insert('itens_inventario', {
+        'inventario_id': inventarioId,
+        'produto_id': id,
+        'qtd_sistema': 0,
+        'qtd_contada': 0,
+        'divergencia': 0,
+        'ajustado': 0,
+      });
+      await deveLancarAppException(() => prodRepo.excluir(id));
+      expect(await prodRepo.buscarPorId(id), isNotNull);
+      expect(
+        await db.query(
+          'itens_inventario',
+          where: 'produto_id = ?',
+          whereArgs: [id],
+        ),
+        hasLength(1),
+      );
+    });
+
     test('filtro por categoria', () async {
       await prodRepo.criar(
         nome: 'Produto Cat A',
@@ -131,7 +199,11 @@ void main() {
       );
       // cria uma segunda categoria
       await db.insert('categorias', {'nome': 'Categoria Z'});
-      final catZ = await db.query('categorias', where: 'nome = ?', whereArgs: ['Categoria Z']);
+      final catZ = await db.query(
+        'categorias',
+        where: 'nome = ?',
+        whereArgs: ['Categoria Z'],
+      );
       await prodRepo.criar(
         nome: 'Produto Cat Z',
         categoriaId: catZ.first['id'] as int,
@@ -158,7 +230,10 @@ void main() {
 
       // tentar mudar a unidade deve falhar
       final outraUnidade = await db.query(
-        'unidades', where: 'id != ?', whereArgs: [unidadeId], limit: 1,
+        'unidades',
+        where: 'id != ?',
+        whereArgs: [unidadeId],
+        limit: 1,
       );
       if (outraUnidade.isNotEmpty) {
         await deveLancarAppException(

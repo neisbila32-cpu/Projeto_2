@@ -65,6 +65,40 @@ class ProdutoRepository {
     return (Sqflite.firstIntValue(r) ?? 0) > 0;
   }
 
+  Future<void> excluir(int produtoId) async {
+    final db = await _appDb.database;
+    final produto = await db.query(
+      'produtos',
+      columns: ['saldo'],
+      where: 'id = ?',
+      whereArgs: [produtoId],
+      limit: 1,
+    );
+    if (produto.isEmpty) {
+      throw const AppException('Produto não encontrado.');
+    }
+    final movimentacoes = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM movimentacoes WHERE produto_id = ?',
+      [produtoId],
+    );
+    final itensInventario = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM itens_inventario WHERE produto_id = ?',
+      [produtoId],
+    );
+    if ((Sqflite.firstIntValue(movimentacoes) ?? 0) > 0 ||
+        (Sqflite.firstIntValue(itensInventario) ?? 0) > 0) {
+      throw const AppException(
+        'Não é possível excluir o produto: existem movimentações ou inventários vinculados.',
+      );
+    }
+    if ((produto.first['saldo'] as int) != 0) {
+      throw const AppException(
+        'Não é possível excluir o produto enquanto houver saldo em estoque.',
+      );
+    }
+    await db.delete('produtos', where: 'id = ?', whereArgs: [produtoId]);
+  }
+
   /// O produto nasce com saldo 0. O estoque inicial entra como "entrada".
   Future<int> criar({
     required String nome,
@@ -121,11 +155,7 @@ class ProdutoRepository {
 
     await db.update(
       'produtos',
-      {
-        'nome': nomeLimpo,
-        'categoria_id': categoriaId,
-        'unidade_id': unidadeId,
-      },
+      {'nome': nomeLimpo, 'categoria_id': categoriaId, 'unidade_id': unidadeId},
       where: 'id = ?',
       whereArgs: [id],
     );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/produtos/models/categoria.dart';
@@ -27,11 +26,12 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => context.pop(null),
+            onPressed: () => Navigator.of(dialogContext).pop(null),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => context.pop(controller.text.trim()),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
             child: const Text('Salvar'),
           ),
         ],
@@ -49,9 +49,9 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
       ref.invalidate(categoriasAtivasProvider);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,11 +73,12 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => context.pop(null),
+            onPressed: () => Navigator.of(dialogContext).pop(null),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => context.pop(controller.text.trim()),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
             child: const Text('Salvar'),
           ),
         ],
@@ -89,18 +90,17 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
     if (resultado == null || resultado.isEmpty) return;
 
     try {
-      await ref.read(categoriaRepositoryProvider).renomear(
-        categoria.id,
-        resultado,
-      );
+      await ref
+          .read(categoriaRepositoryProvider)
+          .renomear(categoria.id, resultado);
       if (!mounted) return;
       ref.invalidate(categoriasTodasProvider);
       ref.invalidate(categoriasAtivasProvider);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,22 +111,61 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
 
   Future<void> _definirAtiva(Categoria categoria, bool ativa) async {
     try {
-      await ref.read(categoriaRepositoryProvider).definirAtiva(
-        categoria.id,
-        ativa,
-      );
+      await ref
+          .read(categoriaRepositoryProvider)
+          .definirAtiva(categoria.id, ativa);
       if (!mounted) return;
       ref.invalidate(categoriasTodasProvider);
       ref.invalidate(categoriasAtivasProvider);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro inesperado. Tente novamente.')),
+      );
+    }
+  }
+
+  Future<void> _excluir(Categoria categoria) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir categoria'),
+        content: Text('Deseja excluir a categoria "${categoria.nome}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmado != true) return;
+    try {
+      await ref.read(categoriaRepositoryProvider).excluir(categoria.id);
+      if (!mounted) return;
+      ref.invalidate(categoriasTodasProvider);
+      ref.invalidate(categoriasAtivasProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Categoria excluída com sucesso.')),
+      );
+    } on AppException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro inesperado ao excluir categoria.')),
       );
     }
   }
@@ -136,9 +175,7 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
     final categoriasAsync = ref.watch(categoriasTodasProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categorias'),
-      ),
+      appBar: AppBar(title: const Text('Categorias')),
       body: categoriasAsync.when(
         data: (categorias) {
           if (categorias.isEmpty) {
@@ -151,12 +188,9 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
               return ListTile(
                 title: Text(
                   categoria.nome,
-                  style: TextStyle(
-                    color: categoria.ativa ? null : Colors.grey,
-                  ),
+                  style: TextStyle(color: categoria.ativa ? null : Colors.grey),
                 ),
-                subtitle:
-                    categoria.ativa ? null : const Text('Inativa'),
+                subtitle: categoria.ativa ? null : const Text('Inativa'),
                 trailing: PopupMenuButton<String>(
                   onSelected: (valor) async {
                     if (valor == 'renomear') {
@@ -165,6 +199,8 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
                       await _definirAtiva(categoria, true);
                     } else if (valor == 'inativar') {
                       await _definirAtiva(categoria, false);
+                    } else if (valor == 'excluir') {
+                      await _excluir(categoria);
                     }
                   },
                   itemBuilder: (context) => [
@@ -174,9 +210,11 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
                     ),
                     PopupMenuItem(
                       value: categoria.ativa ? 'inativar' : 'ativar',
-                      child: Text(
-                        categoria.ativa ? 'Inativar' : 'Reativar',
-                      ),
+                      child: Text(categoria.ativa ? 'Inativar' : 'Reativar'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'excluir',
+                      child: Text('Excluir'),
                     ),
                   ],
                 ),
@@ -185,9 +223,8 @@ class _CategoriasScreenState extends ConsumerState<CategoriasScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(
-          child: Text('Erro ao carregar categorias.'),
-        ),
+        error: (_, __) =>
+            const Center(child: Text('Erro ao carregar categorias.')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _novaCategoria,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +8,11 @@ import 'package:projeto_2/features/produtos/models/produto.dart';
 import 'package:projeto_2/features/produtos/providers/produto_providers.dart';
 
 class ProdutosListaView extends ConsumerWidget {
-  const ProdutosListaView({super.key, this.aoTocar, this.mostrarCategorias = true});
+  const ProdutosListaView({
+    super.key,
+    this.aoTocar,
+    this.mostrarCategorias = true,
+  });
 
   final void Function(Produto produto)? aoTocar;
   final bool mostrarCategorias;
@@ -78,8 +82,9 @@ class ProdutosListaView extends ConsumerWidget {
               const Spacer(),
               Switch(
                 value: filtro.incluirInativos,
-                onChanged: (valor) =>
-                    ref.read(produtoFiltroProvider.notifier).setIncluirInativos(valor),
+                onChanged: (valor) => ref
+                    .read(produtoFiltroProvider.notifier)
+                    .setIncluirInativos(valor),
               ),
             ],
           ),
@@ -89,9 +94,8 @@ class ProdutosListaView extends ConsumerWidget {
             onRefresh: () async => ref.invalidate(produtosProvider),
             child: produtosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(
-                child: Text('Erro ao carregar produtos.'),
-              ),
+              error: (_, __) =>
+                  const Center(child: Text('Erro ao carregar produtos.')),
               data: (produtos) {
                 if (produtos.isEmpty) {
                   final semFiltro =
@@ -141,21 +145,28 @@ class ProdutosListaView extends ConsumerWidget {
   }
 }
 
-Widget _listaAgrupada(BuildContext context, List<Produto> produtos,
-    {void Function(Produto produto)? aoTocar}) {
+Widget _listaAgrupada(
+  BuildContext context,
+  List<Produto> produtos, {
+  void Function(Produto produto)? aoTocar,
+}) {
   final agrupado = <String, List<Produto>>{};
   for (final p in produtos) {
     agrupado.putIfAbsent(p.categoriaNome, () => []).add(p);
   }
 
   final categoriasOrdenadas = agrupado.keys.toList()
-    ..sort((a, b) => TextoUtils.normalizar(a).compareTo(TextoUtils.normalizar(b)));
+    ..sort(
+      (a, b) => TextoUtils.normalizar(a).compareTo(TextoUtils.normalizar(b)),
+    );
 
   final widgets = <Widget>[];
   for (final categoriaNome in categoriasOrdenadas) {
     final produtosCategoria = agrupado[categoriaNome]!;
     produtosCategoria.sort(
-      (a, b) => TextoUtils.normalizar(a.nome).compareTo(TextoUtils.normalizar(b.nome)),
+      (a, b) => TextoUtils.normalizar(
+        a.nome,
+      ).compareTo(TextoUtils.normalizar(b.nome)),
     );
     widgets.add(
       Padding(
@@ -227,9 +238,7 @@ List<Widget> _itensComLinhas(
   final itens = <Widget>[];
   for (var i = 0; i < produtos.length; i++) {
     if (i > 0) {
-      itens.add(
-        Container(height: 1, color: colorScheme.outlineVariant),
-      );
+      itens.add(Container(height: 1, color: colorScheme.outlineVariant));
     }
     itens.add(
       _ProdutoItem(
@@ -269,65 +278,65 @@ class _ProdutoItem extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  produto.nome,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: ativo ? null : colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (mostrarCategoria) ...[
-                  const SizedBox(height: 4),
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    produto.categoriaNome,
+                    produto.nome,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: ativo ? null : colorScheme.onSurfaceVariant,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-                if (!ativo) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Inativo',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colorScheme.onSurfaceVariant,
+                  if (mostrarCategoria) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      produto.categoriaNome,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
+                  ],
+                  if (!ativo) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Inativo',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: (saldoZero || !ativo)
-                  ? colorScheme.surfaceContainerHigh
-                  : colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              produto.saldoFormatado,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: (saldoZero || !ativo)
-                    ? colorScheme.onSurfaceVariant
-                    : colorScheme.onPrimaryContainer,
               ),
             ),
-          ),
-        ],
-      ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: (saldoZero || !ativo)
+                    ? colorScheme.surfaceContainerHigh
+                    : colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                produto.saldoFormatado,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: (saldoZero || !ativo)
+                      ? colorScheme.onSurfaceVariant
+                      : colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -361,8 +370,9 @@ class _CategoriaChips extends ConsumerWidget {
                   child: ChoiceChip(
                     label: Text(categoria.nome),
                     selected: filtro.categoriaId == categoria.id,
-                    onSelected: (_) =>
-                        ref.read(produtoFiltroProvider.notifier).setCategoria(categoria.id),
+                    onSelected: (_) => ref
+                        .read(produtoFiltroProvider.notifier)
+                        .setCategoria(categoria.id),
                   ),
                 ),
             ],

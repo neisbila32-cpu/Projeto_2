@@ -66,6 +66,27 @@ class CategoriaRepository {
     );
   }
 
+  Future<void> excluir(int id) async {
+    final db = await _appDb.database;
+    final r = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM produtos WHERE categoria_id = ?',
+      [id],
+    );
+    if ((Sqflite.firstIntValue(r) ?? 0) > 0) {
+      throw const AppException(
+        'Não é possível excluir a categoria: existem produtos vinculados.',
+      );
+    }
+    final removidas = await db.delete(
+      'categorias',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (removidas == 0) {
+      throw const AppException('Categoria não encontrada.');
+    }
+  }
+
   Future<void> _validarNomeUnico(
     DatabaseExecutor db,
     String nome, {
