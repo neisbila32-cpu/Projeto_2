@@ -1,17 +1,33 @@
-# meu_app_android
+# Estoque UAN
 
-A new Flutter project.
+Aplicativo Flutter local para controlar o estoque de uma Unidade de Alimentação e Nutrição (UAN). Os dados ficam no banco SQLite do aparelho.
 
-## Getting Started
+## Funcionalidades
 
-This project is a starting point for a Flutter application.
+- Cadastro e autenticação local de usuários, com perfis de administrador e operador.
+- Catálogo inicial, cadastro de produtos, categorias e unidades.
+- Movimentações de entrada, saída, perda e ajuste, com histórico por responsável.
+- Painel com indicadores de estoque e inventário físico com ajuste pela contagem.
+- Relatórios de posição atual e movimentações, com exportação em CSV.
+- Exportação e restauração de backup do banco SQLite.
+- Preferência de tema do aplicativo e guia rápido de uso.
 
-A few resources to get you started if this is your first Flutter project:
+As quantidades são armazenadas como inteiros em milésimos. Por exemplo, `1,5 kg` é guardado como `1500`.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Desenvolvimento
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+O projeto usa Flutter, Riverpod, `go_router` e `sqflite`. Para preparar as dependências e iniciar o app em um dispositivo Android:
+
+```sh
+flutter pub get
+flutter run
+```
+
+Para executar as verificações automatizadas:
+
+```sh
+flutter analyze
+flutter test
+```
+
+Os testes de banco usam SQLite em memória via `sqflite_common_ffi`.

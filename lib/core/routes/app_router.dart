@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:projeto_2/core/routes/foco_observer.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/auth/screens/cadastro_screen.dart';
 import 'package:projeto_2/features/auth/screens/login_screen.dart';
 import 'package:projeto_2/features/auth/screens/recuperar_senha_screen.dart';
 import 'package:projeto_2/features/backup/screens/backup_screen.dart';
+import 'package:projeto_2/features/configuracoes/screens/configuracoes_screen.dart';
 import 'package:projeto_2/features/historico/screens/historico_screen.dart';
-import 'package:projeto_2/features/painel/screens/painel_screen.dart';
+import 'package:projeto_2/features/home/screens/home_screen.dart';
 import 'package:projeto_2/features/inventario/screens/inventario_detalhe_screen.dart';
 import 'package:projeto_2/features/inventario/screens/inventario_lista_screen.dart';
-import 'package:projeto_2/features/home/screens/home_screen.dart';
 import 'package:projeto_2/features/movimentacoes/screens/movimentacao_form_screen.dart';
-
+import 'package:projeto_2/features/painel/screens/painel_screen.dart';
+import 'package:projeto_2/features/perfil/screens/perfil_screen.dart';
 import 'package:projeto_2/features/produtos/screens/categorias_screen.dart';
 import 'package:projeto_2/features/produtos/screens/produto_form_screen.dart';
 import 'package:projeto_2/features/produtos/screens/unidades_screen.dart';
-import 'package:projeto_2/core/routes/foco_observer.dart';
+import 'package:projeto_2/features/relatorios/screens/relatorios_screen.dart';
+import 'package:projeto_2/features/tutorial/screens/tutorial_screen.dart';
 
 const Set<String> _rotasPublicas = {'/login', '/cadastro', '/recuperar-senha'};
 
@@ -67,6 +70,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/painel',
         builder: (context, state) => const PainelScreen(),
+      ),
+      GoRoute(
+        path: '/relatorios',
+        builder: (context, state) => const RelatoriosScreen(),
+      ),
+      GoRoute(
+        path: '/perfil',
+        builder: (context, state) => const PerfilScreen(),
+      ),
+      GoRoute(
+        path: '/configuracoes',
+        builder: (context, state) => const ConfiguracoesScreen(),
+      ),
+      GoRoute(
+        path: '/tutorial',
+        builder: (context, state) => const TutorialScreen(),
       ),
       GoRoute(
         path: '/inventarios',

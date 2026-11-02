@@ -142,11 +142,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
             ),
             _ItemMenu(
+              titulo: 'Relatórios',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/relatorios');
+              },
+            ),
+            _ItemMenu(
               titulo: 'Inventário físico',
               selected: false,
               onTap: () {
                 context.pop();
                 context.push('/inventarios');
+              },
+            ),
+            _ItemMenu(
+              titulo: 'Meu perfil',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/perfil');
+              },
+            ),
+            _ItemMenu(
+              titulo: 'Configurações',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/configuracoes');
+              },
+            ),
+            _ItemMenu(
+              titulo: 'Como usar',
+              selected: false,
+              onTap: () {
+                context.pop();
+                context.push('/tutorial');
               },
             ),
             categoriasAsync.when(
