@@ -3,6 +3,7 @@ import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
+import 'package:projeto_2/features/perfil/providers/tamanho_texto_provider.dart';
 
 class PerfilScreen extends ConsumerWidget {
   const PerfilScreen({super.key});
@@ -10,6 +11,8 @@ class PerfilScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuarioAsync = ref.watch(sessionProvider);
+    final tamanhoTexto =
+        ref.watch(tamanhoTextoProvider).value ?? TamanhoTexto.padrao;
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -84,6 +87,56 @@ class PerfilScreen extends ConsumerWidget {
                       subtitle: Text(usuario.ativo ? 'Ativa' : 'Inativa'),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Acessibilidade',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tamanho do texto em todo o aplicativo',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: TamanhoTexto.values.map((opcao) {
+                          return ChoiceChip(
+                            label: Text(
+                              opcao.rotulo,
+                              style: TextStyle(fontSize: 13 * opcao.fator),
+                            ),
+                            selected: tamanhoTexto == opcao,
+                            onSelected: (selecionado) {
+                              if (!selecionado) return;
+                              ref
+                                  .read(tamanhoTextoProvider.notifier)
+                                  .definir(opcao)
+                                  .catchError((_) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Não foi possível salvar o tamanho do texto.',
+                                        ),
+                                      ),
+                                    );
+                                  });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const Padding(

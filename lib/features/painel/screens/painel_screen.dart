@@ -6,6 +6,8 @@ import 'package:projeto_2/core/theme/categoria_cores.dart';
 import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/painel/models/painel_dados.dart';
 import 'package:projeto_2/features/painel/providers/painel_providers.dart';
+import 'package:projeto_2/features/painel/services/painel_pdf.dart';
+import 'package:projeto_2/features/relatorios/services/relatorio_compartilhamento.dart';
 
 /// Tela do painel com resumo, ranking de saídas e movimentação por dia.
 class PainelScreen extends ConsumerStatefulWidget {
@@ -18,6 +20,7 @@ class PainelScreen extends ConsumerStatefulWidget {
 class _PainelScreenState extends ConsumerState<PainelScreen> {
   /// Modo do ranking: false = gêneros, true = produtos.
   bool _rankingProdutos = false;
+  bool _exportando = false;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +33,19 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
         automaticallyImplyLeading: false,
         leading: drawerMenuButton(context),
         title: const Text('Painel'),
+        actions: [
+          IconButton(
+            tooltip: 'Compartilhar gráficos em PDF',
+            onPressed: _exportando ? null : _exportarPdf,
+            icon: _exportando
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -41,16 +57,18 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: PainelAtalho.values.map((a) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(a.rotulo),
-                      selected: a == atalho,
-                      onSelected: (_) =>
-                          ref.read(painelAtalhoProvider.notifier).definir(a),
-                    ),
+                  return ChoiceChip(
+                    label: Text(a.rotulo),
+                    selected: a == atalho,
+                    onSelected: _exportando
+                        ? null
+                        : (_) => ref
+                              .read(painelAtalhoProvider.notifier)
+                              .definir(a),
                   );
                 }).toList(),
               ),
@@ -83,6 +101,49 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportarPdf() async {
+    setState(() => _exportando = true);
+    try {
+      final atalho = ref.read(painelAtalhoProvider);
+      final dados = await ref.read(painelProvider.future);
+      final agora = DateTime.now();
+      final bytes = await PainelPdf.gerar(
+        dados,
+        atalho: atalho,
+        rankingProdutos: _rankingProdutos,
+        geradoEm: agora,
+      );
+      final data = '${agora.year}${_dois(agora.month)}${_dois(agora.day)}';
+      final horario = '${_dois(agora.hour)}${_dois(agora.minute)}';
+      final nomePeriodo = switch (atalho) {
+        PainelAtalho.seteDias => '7_dias',
+        PainelAtalho.trintaDias => '30_dias',
+        PainelAtalho.esteMes => 'este_mes',
+      };
+      final resultado = await RelatorioCompartilhamento().compartilharPdf(
+        conteudo: bytes,
+        nome: 'painel_${nomePeriodo}_${data}_$horario.pdf',
+      );
+      if (mounted && resultado.status.name == 'unavailable') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível abrir o compartilhamento.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível gerar o PDF do Painel.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exportando = false);
+    }
   }
 
   Widget _conteudo(ColorScheme colorScheme, PainelDados dados) {
@@ -277,12 +338,20 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _opcaoModo('Gêneros', !_rankingProdutos, colorScheme, sombra, () {
-            setState(() => _rankingProdutos = false);
-          }),
-          _opcaoModo('Produtos', _rankingProdutos, colorScheme, sombra, () {
-            setState(() => _rankingProdutos = true);
-          }),
+          _opcaoModo(
+            'Gêneros',
+            !_rankingProdutos,
+            colorScheme,
+            sombra,
+            _exportando ? null : () => setState(() => _rankingProdutos = false),
+          ),
+          _opcaoModo(
+            'Produtos',
+            _rankingProdutos,
+            colorScheme,
+            sombra,
+            _exportando ? null : () => setState(() => _rankingProdutos = true),
+          ),
         ],
       ),
     );
@@ -293,7 +362,7 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     bool selecionado,
     ColorScheme colorScheme,
     BoxShadow sombra,
-    VoidCallback onTap,
+    VoidCallback? onTap,
   ) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
@@ -444,6 +513,11 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     final maisDeSete = dias.length > 7;
     final espaco = maisDeSete ? 2.0 : 10.0;
     final raio = maisDeSete ? 6.0 : 10.0;
+    final larguraDisponivel = MediaQuery.sizeOf(context).width - 72;
+    final larguraMinima = maisDeSete ? dias.length * 32.0 : 280.0;
+    final larguraGrafico = larguraDisponivel > larguraMinima
+        ? larguraDisponivel
+        : larguraMinima;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -463,65 +537,78 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
           const SizedBox(height: 14),
           SizedBox(
             height: 150,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(dias.length, (i) {
-                final dia = dias[i];
-                final isMax = diaMax != null && dia.dia == diaMax.dia;
-                final altura = _alturaBarra(dia.total, maxTotal);
-                final mostrarValor = !maisDeSete || isMax;
-                final mostrarRotulo =
-                    !maisDeSete || i == 0 || i % 5 == 0 || i == dias.length - 1;
-                return Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (mostrarValor)
-                        Text(
-                          dia.total.toString(),
-                          style: TextStyle(
-                            fontSize: isMax ? 12 : 11,
-                            fontWeight: isMax
-                                ? FontWeight.w700
-                                : FontWeight.w400,
-                            color: isMax
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: larguraGrafico,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(dias.length, (i) {
+                    final dia = dias[i];
+                    final isMax = diaMax != null && dia.dia == diaMax.dia;
+                    final altura = _alturaBarra(dia.total, maxTotal);
+                    final mostrarValor = !maisDeSete || isMax;
+                    final mostrarRotulo =
+                        !maisDeSete ||
+                        i == 0 ||
+                        i % 5 == 0 ||
+                        i == dias.length - 1;
+                    return Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (mostrarValor)
+                            Text(
+                              dia.total.toString(),
+                              style: TextStyle(
+                                fontSize: isMax ? 12 : 11,
+                                fontWeight: isMax
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                                color: isMax
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+                          const SizedBox(height: 6),
+                          Semantics(
+                            label:
+                                '${_dois(dia.dia.day)}/${_dois(dia.dia.month)}: ${dia.total} movimentações',
+                            child: Container(
+                              margin: EdgeInsets.symmetric(
+                                horizontal: espaco / 2,
+                              ),
+                              height: altura,
+                              decoration: BoxDecoration(
+                                color: isMax
+                                    ? colorScheme.primary
+                                    : colorScheme.primary.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                borderRadius: BorderRadius.circular(raio),
+                              ),
+                            ),
                           ),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                      const SizedBox(height: 6),
-                      Semantics(
-                        label:
-                            '${_dois(dia.dia.day)}/${_dois(dia.dia.month)}: ${dia.total} movimentações',
-                        child: Container(
-                          margin: EdgeInsets.symmetric(horizontal: espaco / 2),
-                          height: altura,
-                          decoration: BoxDecoration(
-                            color: isMax
-                                ? colorScheme.primary
-                                : colorScheme.primary.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(raio),
+                          const SizedBox(height: 6),
+                          Text(
+                            mostrarRotulo
+                                ? (maisDeSete
+                                      ? '${dia.dia.day}'
+                                      : _abreviaDiaSemana(dia.dia.weekday))
+                                : '',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        mostrarRotulo
-                            ? (maisDeSete
-                                  ? '${dia.dia.day}'
-                                  : _abreviaDiaSemana(dia.dia.weekday))
-                            : '',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                    );
+                  }),
+                ),
+              ),
             ),
           ),
         ],

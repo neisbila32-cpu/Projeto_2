@@ -334,8 +334,11 @@ class _ItemMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final alturaMinima = MediaQuery.textScalerOf(context).scale(15) + 12;
     return Container(
-      height: 46,
+      constraints: BoxConstraints(
+        minHeight: alturaMinima > 46 ? alturaMinima : 46,
+      ),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: selected ? colorScheme.primaryContainer : null,
@@ -380,8 +383,11 @@ class _ItemCategoria extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final alturaEscalada = MediaQuery.textScalerOf(context).scale(14) + 12;
     return Container(
-      height: altura,
+      constraints: BoxConstraints(
+        minHeight: alturaEscalada > altura ? alturaEscalada : altura,
+      ),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: selected
           ? BoxDecoration(

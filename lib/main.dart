@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projeto_2/core/routes/app_router.dart';
 import 'package:projeto_2/core/theme/app_theme.dart';
 import 'package:projeto_2/features/configuracoes/providers/tema_provider.dart';
+import 'package:projeto_2/features/perfil/widgets/tamanho_texto_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,8 @@ class MyApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: tema,
       routerConfig: router,
+      builder: (_, child) =>
+          TamanhoTextoApp(child: child ?? const SizedBox.shrink()),
     );
   }
 }
