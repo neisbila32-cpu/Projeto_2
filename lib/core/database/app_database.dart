@@ -14,7 +14,6 @@ class AppDatabase {
   static const String _dbName = 'estoque_uan.db';
   static const int _dbVersion = 4;
 
-  @visibleForTesting
   static int get versaoAtual => _dbVersion;
 
   /// Tabelas cujas linhas pertencem a um contexto de trabalho.
@@ -78,7 +77,6 @@ class AppDatabase {
   /// Desativa temporariamente as FKs antes da transação de abertura.
   /// Necessário para a migração que substitui tabelas referenciadas; o callback
   /// [configurarBanco] as reativa em [onOpen], após a validação transacional.
-  @visibleForTesting
   static Future<void> prepararBancoParaMigracao(Database db) async {
     await db.execute('PRAGMA foreign_keys = OFF');
   }

@@ -88,4 +88,87 @@ class ContextoTrabalhoRepository {
       }
     }
   }
+
+  /// Valida um contexto individual mesmo quando o arquivo também contém
+  /// outros contextos. Usado antes de exportar/restaurar apenas suas linhas.
+  static Future<void> validarContextoIndividual(
+    DatabaseExecutor executor, {
+    String? contextoEsperado,
+  }) async {
+    final tabelas = await executor.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    );
+    final nomes = tabelas.map((linha) => linha['name'] as String).toSet();
+    if (!nomes.contains('contextos_trabalho') ||
+        !nomes.contains('contexto_trabalho_atual')) {
+      throw const AppException(
+        'O banco não possui a estrutura de contexto necessária para um backup individual.',
+      );
+    }
+
+    final atual = await executor.rawQuery('''
+      SELECT atual.contexto_id, c.tipo, c.ativo
+      FROM contexto_trabalho_atual atual
+      JOIN contextos_trabalho c ON c.id = atual.contexto_id
+      WHERE atual.id = 1
+    ''');
+    if (atual.length != 1 ||
+        atual.single['tipo'] != 'individual' ||
+        atual.single['ativo'] != 1) {
+      throw const AppException(
+        'O contexto ativo não é individual e não pode ser exportado como backup individual.',
+      );
+    }
+    final contextoId = atual.single['contexto_id'] as String;
+    if (contextoEsperado != null && contextoId != contextoEsperado) {
+      throw const AppException(
+        'O contexto individual mudou durante a operação de backup.',
+      );
+    }
+
+    final verificacoes = <String, String>{
+      'produtos': '''
+        SELECT COUNT(*) AS total FROM produtos p
+        LEFT JOIN categorias c ON c.id = p.categoria_id
+        LEFT JOIN unidades un ON un.id = p.unidade_id
+        LEFT JOIN usuarios us ON us.id = p.criado_por
+        WHERE p.contexto_id = ? AND
+          (c.contexto_id IS NOT p.contexto_id OR
+           un.contexto_id IS NOT p.contexto_id OR
+           us.contexto_id IS NOT p.contexto_id)
+      ''',
+      'inventarios': '''
+        SELECT COUNT(*) AS total FROM inventarios i
+        LEFT JOIN usuarios us ON us.id = i.usuario_id
+        WHERE i.contexto_id = ? AND us.contexto_id IS NOT i.contexto_id
+      ''',
+      'movimentacoes': '''
+        SELECT COUNT(*) AS total FROM movimentacoes m
+        LEFT JOIN produtos p ON p.id = m.produto_id
+        LEFT JOIN usuarios us ON us.id = m.usuario_id
+        LEFT JOIN inventarios i ON i.id = m.inventario_id
+        WHERE m.contexto_id = ? AND
+          (p.contexto_id IS NOT m.contexto_id OR
+           us.contexto_id IS NOT m.contexto_id OR
+           (m.inventario_id IS NOT NULL AND i.contexto_id IS NOT m.contexto_id))
+      ''',
+      'itens_inventario': '''
+        SELECT COUNT(*) AS total FROM itens_inventario x
+        LEFT JOIN inventarios i ON i.id = x.inventario_id
+        LEFT JOIN produtos p ON p.id = x.produto_id
+        WHERE x.contexto_id = ? AND
+          (i.contexto_id IS NOT x.contexto_id OR
+           p.contexto_id IS NOT x.contexto_id)
+      ''',
+    };
+    for (final entrada in verificacoes.entries) {
+      if (!nomes.contains(entrada.key)) continue;
+      final resultado = await executor.rawQuery(entrada.value, [contextoId]);
+      if ((Sqflite.firstIntValue(resultado) ?? 0) != 0) {
+        throw const AppException(
+          'O contexto individual contém relacionamentos inválidos e não pode ser copiado.',
+        );
+      }
+    }
+  }
 }

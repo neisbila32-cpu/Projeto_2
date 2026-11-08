@@ -1,23 +1,43 @@
 import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:projeto_2/core/database/app_database.dart';
 import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 
+/// Exporta e restaura apenas os dados do contexto individual local.
 class BackupService {
   BackupService({
-    required Future<Database> Function() obterBanco,
+    required this._obterBanco,
     required Future<void> Function() fecharBanco,
-    required Future<String> Function() caminhoBanco,
-  }) : _obterBanco = obterBanco,
-       _fecharBanco = fecharBanco,
-       _caminhoBanco = caminhoBanco;
+    required this._caminhoBanco,
+  });
 
   final Future<Database> Function() _obterBanco;
-  final Future<void> Function() _fecharBanco;
   final Future<String> Function() _caminhoBanco;
 
   static const List<String> _tabelasObrigatorias = [
+    'unidades',
+    'categorias',
+    'usuarios',
+    'produtos',
+    'inventarios',
+    'movimentacoes',
+    'itens_inventario',
+  ];
+
+  static const List<String> _ordemExclusao = [
+    'itens_inventario',
+    'movimentacoes',
+    'inventarios',
+    'produtos',
+    'categorias',
+    'unidades',
+    'usuarios',
+  ];
+
+  static const List<String> _ordemInsercao = [
     'unidades',
     'categorias',
     'usuarios',
@@ -44,137 +64,364 @@ class BackupService {
         '${dois(d.hour)}${dois(d.minute)}${dois(d.second)}';
   }
 
-  Future<void> _copiarBancoAtual(String destino) async {
+  String _caminhoTemporario(String prefixo) => p.join(
+    Directory.systemTemp.path,
+    '${prefixo}_${DateTime.now().microsecondsSinceEpoch}.db',
+  );
+
+  Future<void> _apagarTemporarioSqlite(File arquivo) async {
+    for (final sufixo in ['', '-wal', '-shm', '-journal']) {
+      final auxiliar = File('${arquivo.path}$sufixo');
+      if (await auxiliar.exists()) await auxiliar.delete();
+    }
+  }
+
+  Future<void> _checkpoint(Database db) async {
+    final resultado = await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+    if (resultado.isNotEmpty && (resultado.first['busy'] as int? ?? 0) != 0) {
+      throw const AppException('O banco está ocupado e não pode ser copiado.');
+    }
+  }
+
+  Future<void> _copiarBancoCompletoParaSeguranca(String destino) async {
     final db = await _obterBanco();
-    if (await db.getVersion() >= 2) {
-      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
-      await ContextoTrabalhoRepository.validarBancoIndividual(
-        db,
+    await _checkpoint(db);
+    await File(await _caminhoBanco()).copy(destino);
+  }
+
+  /// Gera um banco SQLite v4 contendo exclusivamente o contexto individual.
+  Future<File> exportar() async {
+    final destino = File(_caminhoTemporario('backup_estoque_uan'));
+    Database? exportado;
+    Database? origemMigrada;
+    File? arquivoMigrado;
+    try {
+      var origem = await _obterBanco();
+      // O app abre em v4; este caminho também mantém compatíveis os bancos v1
+      // fornecidos por integrações/testes antigos, sempre migrando uma cópia.
+      if (await origem.getVersion() < 2) {
+        arquivoMigrado = File(_caminhoTemporario('backup_origem_migrada'));
+        await _checkpoint(origem);
+        await File(await _caminhoBanco()).copy(arquivoMigrado.path);
+        final preparado = await _prepararArquivoIndividual(arquivoMigrado);
+        await _apagarTemporarioSqlite(arquivoMigrado);
+        arquivoMigrado = preparado;
+        origemMigrada = await openDatabase(
+          preparado.path,
+          readOnly: true,
+          singleInstance: false,
+        );
+        origem = origemMigrada;
+      }
+      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(origem);
+      await ContextoTrabalhoRepository.validarContextoIndividual(
+        origem,
         contextoEsperado: contextoId,
       );
+
+      exportado = await _abrirBancoV4(destino.path);
+      await _copiarContexto(origem, exportado, contextoId);
+      final integridade = await _verificarIntegridade(exportado);
+      if (integridade != null) {
+        throw const AppException('Não foi possível validar o backup gerado.');
+      }
+      if ((await exportado.rawQuery('PRAGMA foreign_key_check')).isNotEmpty) {
+        throw const AppException(
+          'Não foi possível validar os relacionamentos do backup.',
+        );
+      }
+      await exportado.close();
+      exportado = null;
+      await origemMigrada?.close();
+      origemMigrada = null;
+      if (arquivoMigrado != null && await arquivoMigrado.exists()) {
+        await _apagarTemporarioSqlite(arquivoMigrado);
+      }
+      return destino;
+    } catch (e) {
+      await exportado?.close();
+      await origemMigrada?.close();
+      if (arquivoMigrado != null && await arquivoMigrado.exists()) {
+        await _apagarTemporarioSqlite(arquivoMigrado);
+      }
+      await _apagarTemporarioSqlite(destino);
+      if (e is AppException) rethrow;
+      throw AppException('Não foi possível gerar o backup: $e');
     }
-    await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
-    final caminho = await _caminhoBanco();
-    await File(caminho).copy(destino);
   }
 
-  /// Gera uma cópia do banco em um arquivo temporário e a devolve.
-  Future<File> exportar() async {
-    final destino = p.join(
-      Directory.systemTemp.path,
-      'backup_estoque_uan_${carimbo(DateTime.now())}.db',
-    );
-    try {
-      await _copiarBancoAtual(destino);
-    } catch (_) {
-      throw AppException('Não foi possível gerar o backup.');
-    }
-    return File(destino);
-  }
-
-  /// Confere se o arquivo é um backup válido deste app.
+  /// Confere estrutura, versão, integridade e que o arquivo represente um
+  /// único contexto individual. Backups v1 são migrados em cópia temporária.
   Future<void> validarArquivo(File arquivo) async {
+    final preparado = await _prepararArquivoIndividual(arquivo);
+    await _apagarTemporarioSqlite(preparado);
+  }
+
+  Future<File> _prepararArquivoIndividual(File arquivo) async {
     if (!await arquivo.exists()) {
-      throw AppException('Arquivo não encontrado.');
+      throw const AppException('Arquivo não encontrado.');
     }
     final raf = await arquivo.open();
     final cabecalho = await raf.read(16);
     await raf.close();
     if (!temCabecalhoSqlite(cabecalho)) {
-      throw AppException('O arquivo escolhido não é um backup válido do app.');
+      throw const AppException(
+        'O arquivo escolhido não é um backup válido do app.',
+      );
     }
 
-    Database? bd;
+    Database? original;
+    Database? migrado;
+    final temporario = File(_caminhoTemporario('backup_validacao'));
     try {
-      bd = await openDatabase(
+      original = await openDatabase(
         arquivo.path,
         readOnly: true,
         singleInstance: false,
       );
-      final linhas = await bd.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type = 'table'",
-      );
-      final tabelas = linhas.map((l) => l['name'] as String).toSet();
-      for (final t in _tabelasObrigatorias) {
-        if (!tabelas.contains(t)) {
-          throw AppException('O arquivo escolhido não é um backup deste app.');
+      final tabelas = await _tabelasExistentes(original);
+      for (final tabela in _tabelasObrigatorias) {
+        if (!tabelas.contains(tabela)) {
+          throw const AppException(
+            'O arquivo escolhido não é um backup deste app.',
+          );
         }
       }
-      final integridade = await bd.rawQuery('PRAGMA integrity_check');
-      if (integridade.isEmpty || integridade.first.values.first != 'ok') {
-        throw AppException('O arquivo de backup está corrompido.');
+      final versao = await original.getVersion();
+      final atual = await (await _obterBanco()).getVersion();
+      if (versao < 1) {
+        throw const AppException(
+          'O arquivo escolhido não é um backup deste app.',
+        );
       }
-      final versaoBackup = await bd.getVersion();
-      final versaoAtual = await (await _obterBanco()).getVersion();
-      if (versaoBackup < 1) {
-        throw AppException('O arquivo escolhido não é um backup deste app.');
-      }
-      if (versaoBackup > versaoAtual) {
-        throw AppException(
+      if (versao > atual) {
+        throw const AppException(
           'Este backup foi criado por uma versão mais nova do app.',
         );
       }
-      if (versaoBackup >= 2) {
-        await ContextoTrabalhoRepository.validarBancoIndividual(bd);
+      final integridadeOriginal = await _verificarIntegridade(original);
+      if (integridadeOriginal != null) {
+        throw const AppException('O arquivo de backup está corrompido.');
       }
+      final fkOriginal = await original.rawQuery('PRAGMA foreign_key_check');
+      if (fkOriginal.isNotEmpty) {
+        throw const AppException('O backup contém relacionamentos inválidos.');
+      }
+      await original.close();
+      original = null;
+
+      await arquivo.copy(temporario.path);
+      migrado = await _abrirBancoV4(temporario.path);
+      final integridadeMigrada = await _verificarIntegridade(migrado);
+      final fkMigrado = await migrado.rawQuery('PRAGMA foreign_key_check');
+      if (integridadeMigrada != null || fkMigrado.isNotEmpty) {
+        throw const AppException(
+          'O backup não passou nas verificações de integridade.',
+        );
+      }
+      await ContextoTrabalhoRepository.validarBancoIndividual(migrado);
+      await migrado.close();
+      migrado = null;
+      return temporario;
     } on AppException {
+      await original?.close();
+      await migrado?.close();
+      await _apagarTemporarioSqlite(temporario);
       rethrow;
     } catch (_) {
-      throw AppException('Não foi possível ler o arquivo de backup.');
-    } finally {
-      await bd?.close();
-    }
-  }
-
-  Future<void> _apagarArquivosAuxiliares(String caminho) async {
-    for (final sufixo in ['-wal', '-shm', '-journal', '.novo']) {
-      final f = File('$caminho$sufixo');
-      if (await f.exists()) await f.delete();
-    }
-  }
-
-  Future<void> _reverter(String caminho, String seguranca) async {
-    try {
-      await _fecharBanco();
-      await _apagarArquivosAuxiliares(caminho);
-      await File(seguranca).copy('$caminho.novo');
-      await File('$caminho.novo').rename(caminho);
-    } catch (_) {
-      // Último recurso: nada mais a fazer aqui.
-    }
-  }
-
-  /// Substitui o banco atual pelo conteúdo de [origem]. Guarda antes uma
-  /// cópia de segurança e reverte se algo falhar.
-  Future<void> restaurar(File origem) async {
-    await validarArquivo(origem);
-    final caminho = await _caminhoBanco();
-    final seguranca = '$caminho.pre_restauracao_${carimbo(DateTime.now())}.bak';
-
-    try {
-      await _copiarBancoAtual(seguranca);
-    } catch (_) {
-      throw AppException(
-        'Não foi possível guardar a cópia de segurança. Nada foi alterado.',
+      await original?.close();
+      await migrado?.close();
+      await _apagarTemporarioSqlite(temporario);
+      throw const AppException(
+        'Não foi possível ler ou migrar o arquivo de backup.',
       );
     }
+  }
 
-    await _fecharBanco();
-    try {
-      await _apagarArquivosAuxiliares(caminho);
-      await origem.copy('$caminho.novo');
-      await File('$caminho.novo').rename(caminho);
+  Future<Database> _abrirBancoV4(String caminho) => openDatabase(
+    caminho,
+    version: AppDatabase.versaoAtual,
+    onConfigure: AppDatabase.prepararBancoParaMigracao,
+    onCreate: AppDatabase.criarEsquemaAtual,
+    onUpgrade: AppDatabase.migrarEsquema,
+    onOpen: AppDatabase.configurarBanco,
+    singleInstance: false,
+  );
 
-      final db = await _obterBanco();
-      final r = await db.rawQuery('PRAGMA integrity_check');
-      if (r.isEmpty || r.first.values.first != 'ok') {
-        throw AppException('Falha na verificação de integridade.');
+  Future<Set<String>> _tabelasExistentes(DatabaseExecutor db) async {
+    final linhas = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    );
+    return linhas.map((linha) => linha['name'] as String).toSet();
+  }
+
+  /// Retorna null quando íntegro; caso contrário, a mensagem do SQLite.
+  Future<String?> _verificarIntegridade(DatabaseExecutor db) async {
+    final linhas = await db.rawQuery('PRAGMA integrity_check');
+    if (linhas.length == 1 && linhas.single.values.single == 'ok') return null;
+    return linhas.toString();
+  }
+
+  Future<void> _copiarContexto(
+    Database origem,
+    Database destino,
+    String contextoId,
+  ) async {
+    await origem.transaction((snapshot) async {
+      await destino.transaction((transacao) async {
+        await _limparContextoRecemCriado(transacao);
+        final contexto = await snapshot.query(
+          'contextos_trabalho',
+          where: 'id = ? AND tipo = ?',
+          whereArgs: [contextoId, 'individual'],
+        );
+        if (contexto.length != 1) {
+          throw const AppException('O contexto individual não foi encontrado.');
+        }
+        await transacao.insert('contextos_trabalho', contexto.single);
+        await transacao.insert('contexto_trabalho_atual', {
+          'id': 1,
+          'contexto_id': contextoId,
+        });
+        for (final tabela in _ordemInsercao) {
+          final linhas = await snapshot.query(
+            tabela,
+            where: 'contexto_id = ?',
+            whereArgs: [contextoId],
+          );
+          for (final linha in linhas) {
+            await transacao.insert(tabela, linha);
+          }
+        }
+      });
+    });
+  }
+
+  Future<void> _limparContextoRecemCriado(DatabaseExecutor db) async {
+    for (final tabela in _ordemExclusao) {
+      await db.delete(tabela);
+    }
+    await db.delete('contexto_trabalho_atual');
+    await db.delete('contextos_trabalho');
+  }
+
+  Future<void> _garantirIdsSemColisao(
+    DatabaseExecutor atual,
+    DatabaseExecutor backup,
+    String contextoAtual,
+    String contextoBackup,
+  ) async {
+    for (final tabela in _tabelasObrigatorias) {
+      final ids = await backup.query(
+        tabela,
+        columns: ['id'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoBackup],
+      );
+      final valores = ids.map((linha) => linha['id'] as int).toList();
+      for (var inicio = 0; inicio < valores.length; inicio += 500) {
+        final lote = valores.skip(inicio).take(500).toList();
+        final colisoes = await atual.rawQuery(
+          'SELECT id FROM $tabela WHERE contexto_id <> ? '
+          'AND id IN (${List.filled(lote.length, '?').join(',')}) LIMIT 1',
+          [contextoAtual, ...lote],
+        );
+        if (colisoes.isNotEmpty) {
+          throw AppException(
+            'A restauração foi cancelada: há IDs de $tabela em uso por outro contexto. '
+            'Os dados atuais foram preservados.',
+          );
+        }
       }
-    } catch (_) {
-      await _reverter(caminho, seguranca);
-      throw AppException(
-        'Não foi possível restaurar o backup. Seus dados anteriores foram mantidos.',
+    }
+  }
+
+  /// Restaura atomicamente somente as linhas individuais e mantém os outros
+  /// contextos. Colisões globais de IDs são recusadas para não remapear dados.
+  Future<void> restaurar(File origem) async {
+    final preparado = await _prepararArquivoIndividual(origem);
+    Database? backup;
+    try {
+      backup = await openDatabase(
+        preparado.path,
+        readOnly: true,
+        singleInstance: false,
       );
+      final db = await _obterBanco();
+      final contextoAtual = await ContextoTrabalhoRepository.exigirIdAtivo(db);
+      final contextoBackup = await ContextoTrabalhoRepository.exigirIdAtivo(
+        backup,
+      );
+      await ContextoTrabalhoRepository.validarContextoIndividual(
+        db,
+        contextoEsperado: contextoAtual,
+      );
+      await ContextoTrabalhoRepository.validarContextoIndividual(
+        backup,
+        contextoEsperado: contextoBackup,
+      );
+      await _garantirIdsSemColisao(db, backup, contextoAtual, contextoBackup);
+
+      final seguranca = _caminhoTemporario('estoque_uan_pre_restauracao');
+      try {
+        await _copiarBancoCompletoParaSeguranca(seguranca);
+      } catch (_) {
+        throw const AppException(
+          'Não foi possível guardar a cópia de segurança. Nada foi alterado.',
+        );
+      }
+
+      try {
+        await db.transaction((transacao) async {
+          for (final tabela in _ordemExclusao) {
+            await transacao.delete(
+              tabela,
+              where: 'contexto_id = ?',
+              whereArgs: [contextoAtual],
+            );
+          }
+          for (final tabela in _ordemInsercao) {
+            final linhas = await backup!.query(
+              tabela,
+              where: 'contexto_id = ?',
+              whereArgs: [contextoBackup],
+            );
+            for (final linhaBackup in linhas) {
+              final linha = Map<String, Object?>.from(linhaBackup)
+                ..['contexto_id'] = contextoAtual;
+              await transacao.insert(tabela, linha);
+            }
+          }
+          final integridade = await transacao.rawQuery(
+            'PRAGMA foreign_key_check',
+          );
+          if (integridade.isNotEmpty) {
+            throw const AppException(
+              'A restauração foi cancelada por falha de integridade.',
+            );
+          }
+          final integridadeBanco = await _verificarIntegridade(transacao);
+          if (integridadeBanco != null) {
+            throw const AppException(
+              'A restauração foi cancelada por falha de integridade.',
+            );
+          }
+          await ContextoTrabalhoRepository.validarContextoIndividual(
+            transacao,
+            contextoEsperado: contextoAtual,
+          );
+        });
+      } catch (e) {
+        // A transação reverte os dados individuais; os demais contextos nunca
+        // são incluídos nas operações de exclusão ou inserção.
+        if (e is AppException) rethrow;
+        throw const AppException(
+          'Não foi possível restaurar o backup. Seus dados anteriores foram mantidos.',
+        );
+      }
+    } finally {
+      await backup?.close();
+      await _apagarTemporarioSqlite(preparado);
     }
   }
 }

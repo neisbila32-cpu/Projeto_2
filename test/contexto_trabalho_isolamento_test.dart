@@ -376,14 +376,27 @@ void main() {
   );
 
   test(
-    'backup individual é recusado se houver dados de outro contexto',
+    'backup individual exporta somente seu contexto se houver outros dados',
     () async {
       final service = BackupService(
         obterBanco: () async => banco!,
         fecharBanco: () async {},
         caminhoBanco: () async => banco!.path,
       );
-      await expectLater(service.exportar(), throwsA(isA<AppException>()));
+      final backup = await service.exportar();
+      final bancoBackup = await databaseFactoryFfi.openDatabase(
+        backup.path,
+        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+      );
+      expect(await bancoBackup.query('contextos_trabalho'), hasLength(1));
+      expect(await bancoBackup.query('produtos'), hasLength(1));
+      expect(
+        (await bancoBackup.query('produtos')).single['contexto_id'],
+        individualContextoId,
+      );
+      expect(await bancoBackup.rawQuery('PRAGMA foreign_key_check'), isEmpty);
+      await bancoBackup.close();
+      await backup.delete();
       await banco!.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
       final arquivoComOutroContexto = File(
         p.join(tempDir.path, 'backup_com_outro_contexto.db'),

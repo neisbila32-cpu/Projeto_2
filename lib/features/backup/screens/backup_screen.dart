@@ -104,7 +104,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         title: const Text('Restaurar este backup?'),
         content: Text(
           'Arquivo: ${files.first.name}\n\n'
-          'Todos os dados atuais serão substituídos. '
+          'Os dados do contexto individual deste aparelho serão substituídos. '
+          'Outros contextos de trabalho serão preservados. '
           'Esta ação não pode ser desfeita pelo app.',
         ),
         actions: [
@@ -261,9 +262,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'A restauração substitui TODOS os dados atuais '
-                      'pelos do arquivo escolhido. Uma cópia de segurança '
-                      'do estado atual será guardada no aparelho.',
+                      'A restauração substitui os dados do contexto individual '
+                      'pelos do arquivo escolhido. Outros contextos de trabalho '
+                      'são preservados. Uma cópia do estado atual será guardada '
+                      'no aparelho.',
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
