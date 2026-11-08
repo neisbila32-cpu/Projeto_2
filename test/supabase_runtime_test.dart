@@ -10,6 +10,7 @@ import 'package:projeto_2/core/supabase/supabase_runtime.dart';
 import 'package:projeto_2/features/auth/models/usuario.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/auth/providers/autenticacao_remota_provider.dart';
+import 'package:projeto_2/features/auth/repositories/autenticacao_remota_repository.dart';
 
 void main() {
   group('Configuração Supabase opcional', () {
@@ -168,7 +169,7 @@ void main() {
       await container.read(supabaseRuntimeProvider.future);
       expect(
         container.read(autenticacaoRemotaProvider),
-        isA<AutenticacaoRemota>(),
+        isA<AutenticacaoRemotaRepository>(),
       );
     });
   });

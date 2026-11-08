@@ -1,22 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:projeto_2/core/supabase/supabase_providers.dart';
+import 'package:projeto_2/features/auth/repositories/autenticacao_remota_repository.dart';
 
-abstract interface class AutenticacaoRemota {
-  GoTrueClient get cliente;
-}
-
-class SupabaseAutenticacaoRemota implements AutenticacaoRemota {
-  const SupabaseAutenticacaoRemota(this._client);
-
-  final SupabaseClient _client;
-
-  @override
-  GoTrueClient get cliente => _client.auth;
-}
-
-final autenticacaoRemotaProvider = Provider<AutenticacaoRemota?>((ref) {
+final autenticacaoRemotaProvider = Provider<AutenticacaoRemotaRepository?>((
+  ref,
+) {
   final client = ref.watch(supabaseClientProvider);
-  return client == null ? null : SupabaseAutenticacaoRemota(client);
+  return client == null
+      ? null
+      : SupabaseAutenticacaoRemotaRepository(client.auth);
+});
+
+final estadoSessaoRemotaProvider = StreamProvider<EstadoSessaoRemota>((ref) {
+  final autenticacao = ref.watch(autenticacaoRemotaProvider);
+  if (autenticacao == null) {
+    return Stream.value(
+      const EstadoSessaoRemota(evento: EventoSessaoRemota.inicial),
+    );
+  }
+  return autenticacao.eventos;
 });

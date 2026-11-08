@@ -32,17 +32,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _carregando = true);
 
     try {
-      await ref.read(sessionProvider.notifier).entrar(
-        login: _loginController.text.trim(),
-        senha: _senhaController.text,
-      );
+      await ref
+          .read(sessionProvider.notifier)
+          .entrar(
+            login: _loginController.text.trim(),
+            senha: _senhaController.text,
+          );
 
       if (!mounted) return;
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,14 +56,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final existeAsync = ref.watch(existeUsuarioProvider);
 
     if (existeAsync.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (existeAsync.value == false) {
@@ -112,9 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   labelText: 'Senha',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _senhaVisivel
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+                      _senhaVisivel ? Icons.visibility : Icons.visibility_off,
                     ),
                     onPressed: () =>
                         setState(() => _senhaVisivel = !_senhaVisivel),
@@ -137,9 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Entrar'),
                 ),
@@ -152,6 +149,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextButton(
                 onPressed: () => context.go('/recuperar-senha'),
                 child: const Text('Esqueci minha senha'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/areas-compartilhadas'),
+                icon: const Icon(Icons.groups_outlined),
+                label: const Text('Áreas compartilhadas'),
               ),
             ],
           ),

@@ -6,6 +6,9 @@ import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/auth/screens/cadastro_screen.dart';
 import 'package:projeto_2/features/auth/screens/login_screen.dart';
 import 'package:projeto_2/features/auth/screens/recuperar_senha_screen.dart';
+import 'package:projeto_2/features/auth/screens/areas_compartilhadas_screen.dart';
+import 'package:projeto_2/features/auth/providers/autenticacao_remota_provider.dart';
+import 'package:projeto_2/features/auth/repositories/autenticacao_remota_repository.dart';
 import 'package:projeto_2/features/backup/screens/backup_screen.dart';
 import 'package:projeto_2/features/configuracoes/screens/configuracoes_screen.dart';
 import 'package:projeto_2/features/historico/screens/historico_screen.dart';
@@ -21,11 +24,19 @@ import 'package:projeto_2/features/produtos/screens/unidades_screen.dart';
 import 'package:projeto_2/features/relatorios/screens/relatorios_screen.dart';
 import 'package:projeto_2/features/tutorial/screens/tutorial_screen.dart';
 
-const Set<String> _rotasPublicas = {'/login', '/cadastro', '/recuperar-senha'};
+const Set<String> _rotasPublicas = {
+  '/login',
+  '/cadastro',
+  '/recuperar-senha',
+  '/areas-compartilhadas',
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(sessionProvider, (previous, next) => refresh.value++);
+  ref.listen(estadoSessaoRemotaProvider, (previous, next) {
+    refresh.value++;
+  });
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -35,8 +46,24 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final session = ref.read(sessionProvider);
       final local = state.matchedLocation;
+      final estadoRemoto = ref.read(estadoSessaoRemotaProvider).value;
 
-      if (session.isLoading) return local == '/splash' ? null : '/splash';
+      if (estadoRemoto?.evento == EventoSessaoRemota.recuperacaoSenha &&
+          (local != '/areas-compartilhadas' ||
+              state.uri.queryParameters['fluxo'] != 'nova-senha')) {
+        return '/areas-compartilhadas?fluxo=nova-senha';
+      }
+      if (estadoRemoto?.evento == EventoSessaoRemota.entrou &&
+          estadoRemoto!.emailConfirmado &&
+          local != '/areas-compartilhadas') {
+        return '/areas-compartilhadas?fluxo=email-confirmado';
+      }
+
+      if (session.isLoading) {
+        return local == '/splash' || _rotasPublicas.contains(local)
+            ? null
+            : '/splash';
+      }
       final logado = session.value != null;
       if (!logado) return _rotasPublicas.contains(local) ? null : '/login';
       if (_rotasPublicas.contains(local) || local == '/splash') return '/home';
@@ -47,10 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const _SplashScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/cadastro',
         builder: (context, state) => const CadastroScreen(),
@@ -60,9 +84,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RecuperarSenhaScreen(),
       ),
       GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
+        path: '/areas-compartilhadas',
+        builder: (context, state) => AreasCompartilhadasScreen(
+          key: ValueKey(state.uri.queryParameters['fluxo']),
+          fluxoInicial: state.uri.queryParameters['fluxo'],
+        ),
       ),
+      GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
       GoRoute(
         path: '/historico',
         builder: (context, state) => const HistoricoScreen(),

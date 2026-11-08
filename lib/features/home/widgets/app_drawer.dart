@@ -297,6 +297,13 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             child: Divider(color: Theme.of(context).colorScheme.outlineVariant),
           ),
           _ItemCategoria(
+            nome: 'Áreas compartilhadas',
+            selected: atual == '/areas-compartilhadas',
+            altura: 40,
+            comBolinha: false,
+            onTap: () => _navegar(context, '/areas-compartilhadas'),
+          ),
+          _ItemCategoria(
             nome: 'Sair',
             selected: false,
             altura: 40,
