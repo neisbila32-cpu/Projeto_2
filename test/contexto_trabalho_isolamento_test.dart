@@ -41,8 +41,9 @@ void main() {
       caminho,
       options: OpenDatabaseOptions(
         version: 2,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: (db, version) => AppDatabase.criarEsquemaAtual(db, 2),
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
     individualContextoId =
@@ -167,9 +168,10 @@ void main() {
       caminho,
       options: OpenDatabaseOptions(
         version: AppDatabase.versaoAtual,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquemaAtual,
         onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
     AppDatabase.injetarBancoParaTestes(banco!);

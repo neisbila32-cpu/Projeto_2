@@ -12,7 +12,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _dbName = 'estoque_uan.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
 
   @visibleForTesting
   static int get versaoAtual => _dbVersion;
@@ -56,9 +56,10 @@ class AppDatabase {
     return openDatabase(
       path,
       version: _dbVersion,
-      onConfigure: _onConfigure,
+      onConfigure: prepararBancoParaMigracao,
       onCreate: _onCreate,
       onUpgrade: migrarEsquema,
+      onOpen: configurarBanco,
     );
   }
 
@@ -72,6 +73,14 @@ class AppDatabase {
   /// Configura o banco (PRAGMAs). Extraído para reutilização em testes.
   static Future<void> configurarBanco(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
+  }
+
+  /// Desativa temporariamente as FKs antes da transação de abertura.
+  /// Necessário para a migração que substitui tabelas referenciadas; o callback
+  /// [configurarBanco] as reativa em [onOpen], após a validação transacional.
+  @visibleForTesting
+  static Future<void> prepararBancoParaMigracao(Database db) async {
+    await db.execute('PRAGMA foreign_keys = OFF');
   }
 
   /// Cria o esquema original da versão 1.
@@ -229,6 +238,9 @@ class AppDatabase {
           break;
         case 3:
           await _migrarParaVersao3(db);
+          break;
+        case 4:
+          await _migrarParaVersao4(db);
           break;
         default:
           throw StateError('Migração SQLite não implementada: $versao.');
@@ -511,6 +523,185 @@ class AppDatabase {
     );
   }
 
+  /// Substitui unicidade global por unicidade dentro de cada contexto.
+  /// Os IDs existentes e as referências das tabelas dependentes são mantidos.
+  static Future<void> _migrarParaVersao4(DatabaseExecutor db) async {
+    const gatilhosRelacionados = [
+      'trg_produtos_relacoes_contexto_insert',
+      'trg_produtos_relacoes_contexto_update',
+      'trg_inventarios_relacao_contexto_insert',
+      'trg_inventarios_relacao_contexto_update',
+      'trg_movimentacoes_relacoes_contexto_insert',
+      'trg_movimentacoes_relacoes_contexto_update',
+      'trg_itens_inventario_relacoes_contexto_insert',
+      'trg_itens_inventario_relacoes_contexto_update',
+    ];
+    final definicoesGatilhos = await db.rawQuery('''
+      SELECT sql FROM sqlite_master
+      WHERE type = 'trigger' AND name IN (${List.filled(gatilhosRelacionados.length, '?').join(',')})
+      ''', gatilhosRelacionados);
+    if (definicoesGatilhos.length != gatilhosRelacionados.length) {
+      throw StateError(
+        'A migração foi cancelada porque faltam gatilhos de integridade da versão 3.',
+      );
+    }
+    for (final gatilho in gatilhosRelacionados) {
+      await db.execute('DROP TRIGGER IF EXISTS $gatilho');
+    }
+
+    for (final tabela in const ['categorias', 'unidades', 'usuarios']) {
+      await db.execute(
+        'DROP TRIGGER IF EXISTS trg_${tabela}_contexto_validar_insercao',
+      );
+      await db.execute('DROP TRIGGER IF EXISTS trg_${tabela}_contexto_padrao');
+      await db.execute(
+        'DROP TRIGGER IF EXISTS trg_${tabela}_contexto_imutavel',
+      );
+    }
+
+    await db.execute('''
+      CREATE TABLE categorias_v4 (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome        TEXT NOT NULL,
+        ativa       INTEGER NOT NULL DEFAULT 1,
+        contexto_id TEXT REFERENCES contextos_trabalho(id)
+      )
+    ''');
+    await db.execute('''
+      INSERT INTO categorias_v4 (id, nome, ativa, contexto_id)
+      SELECT id, nome, ativa, contexto_id FROM categorias
+    ''');
+    await db.execute('DROP TABLE categorias');
+    await db.execute('ALTER TABLE categorias_v4 RENAME TO categorias');
+    await db.execute(
+      'CREATE INDEX idx_categorias_contexto ON categorias(contexto_id)',
+    );
+    await db.execute('''
+      CREATE UNIQUE INDEX idx_categorias_contexto_nome
+      ON categorias(contexto_id, nome COLLATE NOCASE)
+    ''');
+    await _criarGatilhosContextoTabela(db, 'categorias');
+
+    await db.execute('''
+      CREATE TABLE unidades_v4 (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        sigla       TEXT NOT NULL,
+        nome        TEXT NOT NULL,
+        fracionavel INTEGER NOT NULL CHECK (fracionavel IN (0,1)),
+        ativa       INTEGER NOT NULL DEFAULT 1,
+        contexto_id TEXT REFERENCES contextos_trabalho(id)
+      )
+    ''');
+    await db.execute('''
+      INSERT INTO unidades_v4 (id, sigla, nome, fracionavel, ativa, contexto_id)
+      SELECT id, sigla, nome, fracionavel, ativa, contexto_id FROM unidades
+    ''');
+    await db.execute('DROP TABLE unidades');
+    await db.execute('ALTER TABLE unidades_v4 RENAME TO unidades');
+    await db.execute(
+      'CREATE INDEX idx_unidades_contexto ON unidades(contexto_id)',
+    );
+    await db.execute('''
+      CREATE UNIQUE INDEX idx_unidades_contexto_sigla
+      ON unidades(contexto_id, sigla COLLATE NOCASE)
+    ''');
+    await _criarGatilhosContextoTabela(db, 'unidades');
+
+    await db.execute('''
+      CREATE TABLE usuarios_v4 (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome        TEXT NOT NULL,
+        login       TEXT NOT NULL,
+        senha_hash  TEXT NOT NULL,
+        senha_salt  TEXT NOT NULL,
+        perfil      TEXT NOT NULL CHECK (perfil IN ('admin','operador')),
+        recup_hash  TEXT,
+        recup_salt  TEXT,
+        ativo       INTEGER NOT NULL DEFAULT 1,
+        criado_em   TEXT NOT NULL,
+        contexto_id TEXT REFERENCES contextos_trabalho(id)
+      )
+    ''');
+    await db.execute('''
+      INSERT INTO usuarios_v4 (
+        id, nome, login, senha_hash, senha_salt, perfil, recup_hash,
+        recup_salt, ativo, criado_em, contexto_id
+      )
+      SELECT id, nome, login, senha_hash, senha_salt, perfil, recup_hash,
+        recup_salt, ativo, criado_em, contexto_id FROM usuarios
+    ''');
+    await db.execute('DROP TABLE usuarios');
+    await db.execute('ALTER TABLE usuarios_v4 RENAME TO usuarios');
+    await db.execute(
+      'CREATE INDEX idx_usuarios_contexto ON usuarios(contexto_id)',
+    );
+    await db.execute('''
+      CREATE UNIQUE INDEX idx_usuarios_contexto_login
+      ON usuarios(contexto_id, login COLLATE NOCASE)
+    ''');
+    await _criarGatilhosContextoTabela(db, 'usuarios');
+
+    for (final definicao in definicoesGatilhos) {
+      await db.execute(definicao['sql'] as String);
+    }
+
+    final violacoes = await db.rawQuery('PRAGMA foreign_key_check');
+    if (violacoes.isNotEmpty) {
+      throw StateError(
+        'A migração de unicidade encontrou referências inválidas: $violacoes',
+      );
+    }
+  }
+
+  static Future<void> _criarGatilhosContextoTabela(
+    DatabaseExecutor db,
+    String tabela,
+  ) async {
+    await db.execute('''
+      CREATE TRIGGER trg_${tabela}_contexto_validar_insercao
+      BEFORE INSERT ON $tabela
+      BEGIN
+        SELECT CASE WHEN NOT EXISTS (
+          SELECT 1
+          FROM contexto_trabalho_atual atual
+          JOIN contextos_trabalho contexto
+            ON contexto.id = COALESCE(NEW.contexto_id, atual.contexto_id)
+          WHERE atual.id = 1
+            AND contexto.id = atual.contexto_id
+            AND contexto.tipo = 'individual'
+            AND contexto.ativo = 1
+        ) THEN RAISE(ABORT, 'Contexto individual ativo inválido.') END;
+      END
+    ''');
+    await db.execute('''
+      CREATE TRIGGER trg_${tabela}_contexto_padrao
+      AFTER INSERT ON $tabela
+      WHEN NEW.contexto_id IS NULL
+      BEGIN
+        UPDATE $tabela
+        SET contexto_id = (
+          SELECT contexto.id
+          FROM contexto_trabalho_atual atual
+          JOIN contextos_trabalho contexto
+            ON contexto.id = atual.contexto_id
+          WHERE atual.id = 1
+            AND contexto.tipo = 'individual'
+            AND contexto.ativo = 1
+        )
+        WHERE id = NEW.id;
+      END
+    ''');
+    await db.execute('''
+      CREATE TRIGGER trg_${tabela}_contexto_imutavel
+      BEFORE UPDATE OF contexto_id ON $tabela
+      WHEN OLD.contexto_id IS NOT NULL
+        AND NEW.contexto_id IS NOT OLD.contexto_id
+      BEGIN
+        SELECT RAISE(ABORT, 'O registro não pode ser movido entre contextos.');
+      END
+    ''');
+  }
+
   static Future<void> _validarRelacoesDaVersao2(DatabaseExecutor db) async {
     const consultas = <String>[
       '''
@@ -588,10 +779,6 @@ class AppDatabase {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20)}';
-  }
-
-  Future<void> _onConfigure(Database db) async {
-    await configurarBanco(db);
   }
 
   Future<void> _onCreate(Database db, int version) async {

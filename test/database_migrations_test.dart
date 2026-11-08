@@ -26,8 +26,25 @@ void main() {
       p.join(tempDir.path, nome),
       options: OpenDatabaseOptions(
         version: 1,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquema,
+        onOpen: AppDatabase.configurarBanco,
+      ),
+    );
+  }
+
+  Future<Database> criarBancoIntermediario(String nome, int versao) async {
+    final caminho = p.join(tempDir.path, nome);
+    final v1 = await criarBancoV1(nome);
+    await v1.close();
+    return databaseFactoryFfi.openDatabase(
+      caminho,
+      options: OpenDatabaseOptions(
+        version: versao,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
+        onCreate: AppDatabase.criarEsquemaAtual,
+        onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
   }
@@ -87,13 +104,15 @@ void main() {
       caminho,
       options: OpenDatabaseOptions(
         version: AppDatabase.versaoAtual,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquemaAtual,
         onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
 
     expect(await db.getVersion(), AppDatabase.versaoAtual);
+    expect((await db.rawQuery('PRAGMA foreign_keys')).single.values.single, 1);
     final produto = (await db.query(
       'produtos',
       where: 'id = ?',
@@ -188,9 +207,10 @@ void main() {
       caminho,
       options: OpenDatabaseOptions(
         version: AppDatabase.versaoAtual,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquemaAtual,
         onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
     expect((await db.query('contextos_trabalho')).single['id'], contextoId);
@@ -210,16 +230,260 @@ void main() {
       p.join(tempDir.path, 'novo.db'),
       options: OpenDatabaseOptions(
         version: AppDatabase.versaoAtual,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquemaAtual,
         onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
     expect(await db.getVersion(), AppDatabase.versaoAtual);
     expect((await db.query('contextos_trabalho')).single['tipo'], 'individual');
+    expect((await db.rawQuery('PRAGMA foreign_keys')).single.values.single, 1);
     expect(await db.rawQuery('PRAGMA foreign_key_check'), isEmpty);
     await db.close();
   });
+
+  test('migra versão 2 para atual preservando saldos e históricos', () async {
+    final caminho = p.join(tempDir.path, 'versao2.db');
+    final dbV2 = await criarBancoIntermediario('versao2.db', 2);
+    final contextoId = (await dbV2.query('contextos_trabalho')).single['id'];
+    final categoriaId = await dbV2.insert('categorias', {
+      'nome': 'Proteínas',
+      'contexto_id': contextoId,
+    });
+    final usuarioId = await dbV2.insert('usuarios', {
+      'nome': 'Admin',
+      'login': 'admin-v2',
+      'senha_hash': 'hash-v2',
+      'senha_salt': 'salt-v2',
+      'perfil': 'admin',
+      'ativo': 1,
+      'criado_em': '2026-02-03T04:05:06.000',
+      'contexto_id': contextoId,
+    });
+    final unidadeId = (await dbV2.query(
+      'unidades',
+      where: 'sigla = ?',
+      whereArgs: ['kg'],
+    )).single['id'];
+    final produtoId = await dbV2.insert('produtos', {
+      'nome': 'Arroz',
+      'categoria_id': categoriaId,
+      'unidade_id': unidadeId,
+      'saldo': 7654,
+      'ativo': 1,
+      'criado_em': '2026-02-03T04:05:06.000',
+      'criado_por': usuarioId,
+      'contexto_id': contextoId,
+    });
+    await dbV2.insert('movimentacoes', {
+      'produto_id': produtoId,
+      'tipo': 'entrada',
+      'delta': 654,
+      'saldo_apos': 7654,
+      'data_hora': '2026-02-03T04:05:06.000',
+      'usuario_id': usuarioId,
+      'observacao': 'Histórico da v2',
+      'contexto_id': contextoId,
+    });
+    await dbV2.close();
+
+    final dbV4 = await databaseFactoryFfi.openDatabase(
+      caminho,
+      options: OpenDatabaseOptions(
+        version: AppDatabase.versaoAtual,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
+        onCreate: AppDatabase.criarEsquemaAtual,
+        onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
+      ),
+    );
+    expect(await dbV4.getVersion(), 4);
+    expect(
+      (await dbV4.query(
+        'produtos',
+        where: 'id = ?',
+        whereArgs: [produtoId],
+      )).single['saldo'],
+      7654,
+    );
+    expect(
+      (await dbV4.query(
+        'usuarios',
+        where: 'id = ?',
+        whereArgs: [usuarioId],
+      )).single['senha_hash'],
+      'hash-v2',
+    );
+    expect(
+      (await dbV4.query('movimentacoes')).single['observacao'],
+      'Histórico da v2',
+    );
+    expect(await dbV4.rawQuery('PRAGMA foreign_key_check'), isEmpty);
+    expect(
+      (await dbV4.rawQuery('PRAGMA integrity_check')).single.values.single,
+      'ok',
+    );
+    await dbV4.close();
+  });
+
+  test(
+    'v3 permite nomes e identificadores iguais em contextos distintos',
+    () async {
+      final caminho = p.join(tempDir.path, 'versao3.db');
+      final dbV3 = await criarBancoIntermediario('versao3.db', 3);
+      final contextoLocal = (await dbV3.query(
+        'contextos_trabalho',
+      )).single['id'];
+      final usuarioId = await dbV3.insert('usuarios', {
+        'nome': 'Admin local',
+        'login': 'mesmo-login',
+        'senha_hash': 'hash-preservado',
+        'senha_salt': 'salt-preservado',
+        'perfil': 'admin',
+        'ativo': 1,
+        'criado_em': '2026-02-03T04:05:06.000',
+        'contexto_id': contextoLocal,
+      });
+      await dbV3.close();
+
+      final db = await databaseFactoryFfi.openDatabase(
+        caminho,
+        options: OpenDatabaseOptions(
+          version: AppDatabase.versaoAtual,
+          onConfigure: AppDatabase.prepararBancoParaMigracao,
+          onCreate: AppDatabase.criarEsquemaAtual,
+          onUpgrade: AppDatabase.migrarEsquema,
+          onOpen: AppDatabase.configurarBanco,
+        ),
+      );
+      final contextoCompartilhado = 'contexto-compartilhado-teste';
+      await db.insert('contextos_trabalho', {
+        'id': contextoCompartilhado,
+        'tipo': 'compartilhado',
+        'nome': 'UAN de teste',
+        'uan_remota_id': 'uan-remota-teste',
+        'criado_em': '2026-02-03T04:05:06.000',
+        'ativo': 1,
+      });
+
+      // A política de alternância continua bloqueada; suspende-se apenas a
+      // validação do contexto ativo para exercitar os índices de unicidade.
+      for (final tabela in const ['categorias', 'unidades', 'usuarios']) {
+        await db.execute(
+          'DROP TRIGGER trg_${tabela}_contexto_validar_insercao',
+        );
+      }
+
+      final categoriaLocal = (await db.query(
+        'categorias',
+        where: 'contexto_id = ? AND nome = ?',
+        whereArgs: [contextoLocal, 'Gêneros secos'],
+        limit: 1,
+      )).single;
+      final categoriaCompartilhadaId = await db.insert('categorias', {
+        'nome': categoriaLocal['nome'],
+        'ativa': 1,
+        'contexto_id': contextoCompartilhado,
+      });
+      await expectLater(
+        db.insert('categorias', {
+          'nome': 'gêneros secos',
+          'ativa': 1,
+          'contexto_id': contextoCompartilhado,
+        }),
+        throwsA(anything),
+      );
+      expect(categoriaCompartilhadaId, greaterThan(0));
+
+      final unidadeLocal = (await db.query(
+        'unidades',
+        where: 'contexto_id = ? AND sigla = ?',
+        whereArgs: [contextoLocal, 'kg'],
+      )).single;
+      final unidadeCompartilhadaId = await db.insert('unidades', {
+        'sigla': unidadeLocal['sigla'],
+        'nome': unidadeLocal['nome'],
+        'fracionavel': unidadeLocal['fracionavel'],
+        'ativa': unidadeLocal['ativa'],
+        'contexto_id': contextoCompartilhado,
+      });
+      await expectLater(
+        db.insert('unidades', {
+          'sigla': 'KG',
+          'nome': 'Quilograma duplicado',
+          'fracionavel': 1,
+          'ativa': 1,
+          'contexto_id': contextoCompartilhado,
+        }),
+        throwsA(anything),
+      );
+
+      final usuarioCompartilhadoId = await db.insert('usuarios', {
+        'nome': 'Admin compartilhado',
+        'login': 'MESMO-LOGIN',
+        'senha_hash': 'hash-compartilhado',
+        'senha_salt': 'salt-compartilhado',
+        'perfil': 'admin',
+        'ativo': 1,
+        'criado_em': '2026-02-03T04:05:06.000',
+        'contexto_id': contextoCompartilhado,
+      });
+      await expectLater(
+        db.insert('usuarios', {
+          'nome': 'Outro admin',
+          'login': 'mesmo-login',
+          'senha_hash': 'hash-outro',
+          'senha_salt': 'salt-outro',
+          'perfil': 'admin',
+          'ativo': 1,
+          'criado_em': '2026-02-03T04:05:06.000',
+          'contexto_id': contextoCompartilhado,
+        }),
+        throwsA(anything),
+      );
+
+      await db.execute('DROP TRIGGER trg_produtos_contexto_validar_insercao');
+      final categoriaCompartilhada = (await db.query(
+        'categorias',
+        where: 'contexto_id = ? AND id = ?',
+        whereArgs: [contextoCompartilhado, categoriaCompartilhadaId],
+      )).single;
+      await expectLater(
+        db.insert('produtos', {
+          'nome': 'Produto com relação cruzada',
+          'categoria_id': categoriaCompartilhada['id'],
+          'unidade_id': unidadeCompartilhadaId,
+          'saldo': 0,
+          'ativo': 1,
+          'criado_em': '2026-02-03T04:05:06.000',
+          'criado_por': usuarioId,
+          'contexto_id': contextoCompartilhado,
+        }),
+        throwsA(anything),
+      );
+      expect(usuarioCompartilhadoId, greaterThan(0));
+
+      expect(
+        (await db.query(
+          'usuarios',
+          where: 'id = ?',
+          whereArgs: [usuarioId],
+        )).single['senha_hash'],
+        'hash-preservado',
+      );
+      expect(await db.rawQuery('PRAGMA foreign_key_check'), isEmpty);
+      expect(
+        (await db.rawQuery('PRAGMA foreign_keys')).single.values.single,
+        1,
+      );
+      expect(
+        (await db.rawQuery('PRAGMA integrity_check')).single.values.single,
+        'ok',
+      );
+      await db.close();
+    },
+  );
 
   test('backup exportado preserva estrutura e contexto migrado', () async {
     final caminho = p.join(tempDir.path, 'backup_origem.db');
@@ -229,9 +493,10 @@ void main() {
       caminho,
       options: OpenDatabaseOptions(
         version: AppDatabase.versaoAtual,
-        onConfigure: AppDatabase.configurarBanco,
+        onConfigure: AppDatabase.prepararBancoParaMigracao,
         onCreate: AppDatabase.criarEsquemaAtual,
         onUpgrade: AppDatabase.migrarEsquema,
+        onOpen: AppDatabase.configurarBanco,
       ),
     );
     AppDatabase.injetarBancoParaTestes(db);
@@ -269,9 +534,10 @@ void main() {
           caminhoAlvo,
           options: OpenDatabaseOptions(
             version: AppDatabase.versaoAtual,
-            onConfigure: AppDatabase.configurarBanco,
+            onConfigure: AppDatabase.prepararBancoParaMigracao,
             onCreate: AppDatabase.criarEsquemaAtual,
             onUpgrade: AppDatabase.migrarEsquema,
+            onOpen: AppDatabase.configurarBanco,
           ),
         );
         return dbAtual!;

@@ -16,9 +16,10 @@ Future<Database> abrirBancoEmMemoria() async {
     ':memory:',
     options: OpenDatabaseOptions(
       version: AppDatabase.versaoAtual,
-      onConfigure: AppDatabase.configurarBanco,
+      onConfigure: AppDatabase.prepararBancoParaMigracao,
       onCreate: AppDatabase.criarEsquemaAtual,
       onUpgrade: AppDatabase.migrarEsquema,
+      onOpen: AppDatabase.configurarBanco,
     ),
   );
   AppDatabase.injetarBancoParaTestes(db);
