@@ -1,7 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -12,13 +12,12 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _dbName = 'estoque_uan.db';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
 
   @visibleForTesting
   static int get versaoAtual => _dbVersion;
 
   /// Tabelas cujas linhas pertencem a um contexto de trabalho.
-  @visibleForTesting
   static const List<String> tabelasComContexto = [
     'unidades',
     'categorias',
@@ -209,7 +208,6 @@ class AppDatabase {
 
   /// Cria um banco novo diretamente no esquema atual, passando pelas mesmas
   /// migrações incrementais usadas ao atualizar um banco existente.
-  @visibleForTesting
   static Future<void> criarEsquemaAtual(Database db, int version) async {
     await criarEsquema(db, 1);
     if (version > 1) {
@@ -219,7 +217,6 @@ class AppDatabase {
 
   /// Aplica as migrações sequenciais entre [versaoAntiga] e [novaVersao].
   /// O sqflite executa este callback dentro da transação de upgrade.
-  @visibleForTesting
   static Future<void> migrarEsquema(
     Database db,
     int versaoAntiga,
@@ -229,6 +226,9 @@ class AppDatabase {
       switch (versao) {
         case 2:
           await _migrarParaVersao2(db);
+          break;
+        case 3:
+          await _migrarParaVersao3(db);
           break;
         default:
           throw StateError('Migração SQLite não implementada: $versao.');
@@ -297,6 +297,284 @@ class AppDatabase {
         END
       ''');
     }
+  }
+
+  static Future<void> _migrarParaVersao3(DatabaseExecutor db) async {
+    final contextoAtivo = await db.rawQuery('''
+      SELECT c.tipo, c.ativo
+      FROM contexto_trabalho_atual atual
+      JOIN contextos_trabalho c ON c.id = atual.contexto_id
+      WHERE atual.id = 1
+    ''');
+    if (contextoAtivo.length != 1 ||
+        contextoAtivo.single['tipo'] != 'individual' ||
+        contextoAtivo.single['ativo'] != 1) {
+      throw StateError(
+        'Não é possível migrar enquanto o contexto ativo não for individual e estiver ativo.',
+      );
+    }
+    await _validarRelacoesDaVersao2(db);
+
+    for (final tabela in tabelasComContexto) {
+      await db.execute('DROP TRIGGER IF EXISTS trg_${tabela}_contexto_padrao');
+      await db.execute('''
+        CREATE TRIGGER trg_${tabela}_contexto_validar_insercao
+        BEFORE INSERT ON $tabela
+        BEGIN
+          SELECT CASE WHEN NOT EXISTS (
+            SELECT 1
+            FROM contexto_trabalho_atual atual
+            JOIN contextos_trabalho contexto
+              ON contexto.id = COALESCE(NEW.contexto_id, atual.contexto_id)
+            WHERE atual.id = 1
+              AND contexto.id = atual.contexto_id
+              AND contexto.tipo = 'individual'
+              AND contexto.ativo = 1
+          ) THEN RAISE(ABORT, 'Contexto individual ativo inválido.') END;
+        END
+      ''');
+      await db.execute('''
+        CREATE TRIGGER trg_${tabela}_contexto_padrao
+        AFTER INSERT ON $tabela
+        WHEN NEW.contexto_id IS NULL
+        BEGIN
+          UPDATE $tabela
+          SET contexto_id = (
+            SELECT contexto.id
+            FROM contexto_trabalho_atual atual
+            JOIN contextos_trabalho contexto
+              ON contexto.id = atual.contexto_id
+            WHERE atual.id = 1
+              AND contexto.tipo = 'individual'
+              AND contexto.ativo = 1
+          )
+          WHERE id = NEW.id;
+        END
+      ''');
+      await db.execute('''
+        CREATE TRIGGER trg_${tabela}_contexto_imutavel
+        BEFORE UPDATE OF contexto_id ON $tabela
+        WHEN OLD.contexto_id IS NOT NULL
+          AND NEW.contexto_id IS NOT OLD.contexto_id
+        BEGIN
+          SELECT RAISE(ABORT, 'O registro não pode ser movido entre contextos.');
+        END
+      ''');
+    }
+
+    await db.execute('''
+      CREATE TRIGGER trg_contexto_atual_imutavel
+      BEFORE UPDATE OF contexto_id ON contexto_trabalho_atual
+      WHEN NEW.contexto_id IS NOT OLD.contexto_id
+      BEGIN
+        SELECT RAISE(ABORT, 'A alternância entre contextos ainda não está habilitada.');
+      END
+    ''');
+
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_produtos_relacoes_contexto_insert',
+      tabela: 'produtos',
+      evento: 'INSERT',
+      colunas: '',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM categorias c WHERE c.id = NEW.categoria_id
+            AND c.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        ) OR EXISTS (
+          SELECT 1 FROM unidades un WHERE un.id = NEW.unidade_id
+            AND un.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        ) OR EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.criado_por
+            AND us.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_produtos_relacoes_contexto_update',
+      tabela: 'produtos',
+      evento: 'UPDATE',
+      colunas: 'categoria_id, unidade_id, criado_por, contexto_id',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM categorias c WHERE c.id = NEW.categoria_id
+            AND c.contexto_id IS NOT NEW.contexto_id
+        ) OR EXISTS (
+          SELECT 1 FROM unidades un WHERE un.id = NEW.unidade_id
+            AND un.contexto_id IS NOT NEW.contexto_id
+        ) OR EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.criado_por
+            AND us.contexto_id IS NOT NEW.contexto_id
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_inventarios_relacao_contexto_insert',
+      tabela: 'inventarios',
+      evento: 'INSERT',
+      colunas: '',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.usuario_id
+            AND us.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_inventarios_relacao_contexto_update',
+      tabela: 'inventarios',
+      evento: 'UPDATE',
+      colunas: 'usuario_id, contexto_id',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.usuario_id
+            AND us.contexto_id IS NOT NEW.contexto_id
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_movimentacoes_relacoes_contexto_insert',
+      tabela: 'movimentacoes',
+      evento: 'INSERT',
+      colunas: '',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM produtos p WHERE p.id = NEW.produto_id
+            AND p.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        ) OR EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.usuario_id
+            AND us.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        ) OR (
+          NEW.inventario_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM inventarios i WHERE i.id = NEW.inventario_id
+              AND i.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+          )
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_movimentacoes_relacoes_contexto_update',
+      tabela: 'movimentacoes',
+      evento: 'UPDATE',
+      colunas: 'produto_id, usuario_id, inventario_id, contexto_id',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM produtos p WHERE p.id = NEW.produto_id
+            AND p.contexto_id IS NOT NEW.contexto_id
+        ) OR EXISTS (
+          SELECT 1 FROM usuarios us WHERE us.id = NEW.usuario_id
+            AND us.contexto_id IS NOT NEW.contexto_id
+        ) OR (
+          NEW.inventario_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM inventarios i WHERE i.id = NEW.inventario_id
+              AND i.contexto_id IS NOT NEW.contexto_id
+          )
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_itens_inventario_relacoes_contexto_insert',
+      tabela: 'itens_inventario',
+      evento: 'INSERT',
+      colunas: '',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM inventarios i WHERE i.id = NEW.inventario_id
+            AND i.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        ) OR EXISTS (
+          SELECT 1 FROM produtos p WHERE p.id = NEW.produto_id
+            AND p.contexto_id IS NOT COALESCE(NEW.contexto_id, (SELECT contexto_id FROM contexto_trabalho_atual WHERE id = 1))
+        )
+      ''',
+    );
+    await _criarGatilhoRelacao(
+      db,
+      nome: 'trg_itens_inventario_relacoes_contexto_update',
+      tabela: 'itens_inventario',
+      evento: 'UPDATE',
+      colunas: 'inventario_id, produto_id, contexto_id',
+      condicao: '''
+        EXISTS (
+          SELECT 1 FROM inventarios i WHERE i.id = NEW.inventario_id
+            AND i.contexto_id IS NOT NEW.contexto_id
+        ) OR EXISTS (
+          SELECT 1 FROM produtos p WHERE p.id = NEW.produto_id
+            AND p.contexto_id IS NOT NEW.contexto_id
+        )
+      ''',
+    );
+  }
+
+  static Future<void> _validarRelacoesDaVersao2(DatabaseExecutor db) async {
+    const consultas = <String>[
+      '''
+        SELECT COUNT(*) AS total
+        FROM produtos p
+        LEFT JOIN categorias c ON c.id = p.categoria_id
+        LEFT JOIN unidades un ON un.id = p.unidade_id
+        LEFT JOIN usuarios us ON us.id = p.criado_por
+        WHERE p.contexto_id IS NULL OR c.contexto_id IS NOT p.contexto_id
+          OR un.contexto_id IS NOT p.contexto_id
+          OR us.contexto_id IS NOT p.contexto_id
+      ''',
+      '''
+        SELECT COUNT(*) AS total
+        FROM inventarios i
+        LEFT JOIN usuarios us ON us.id = i.usuario_id
+        WHERE i.contexto_id IS NULL OR us.contexto_id IS NOT i.contexto_id
+      ''',
+      '''
+        SELECT COUNT(*) AS total
+        FROM movimentacoes m
+        LEFT JOIN produtos p ON p.id = m.produto_id
+        LEFT JOIN usuarios us ON us.id = m.usuario_id
+        LEFT JOIN inventarios i ON i.id = m.inventario_id
+        WHERE m.contexto_id IS NULL OR p.contexto_id IS NOT m.contexto_id
+          OR us.contexto_id IS NOT m.contexto_id
+          OR (m.inventario_id IS NOT NULL AND i.contexto_id IS NOT m.contexto_id)
+      ''',
+      '''
+        SELECT COUNT(*) AS total
+        FROM itens_inventario x
+        LEFT JOIN inventarios i ON i.id = x.inventario_id
+        LEFT JOIN produtos p ON p.id = x.produto_id
+        WHERE x.contexto_id IS NULL OR i.contexto_id IS NOT x.contexto_id
+          OR p.contexto_id IS NOT x.contexto_id
+      ''',
+    ];
+    for (final consulta in consultas) {
+      final linhas = await db.rawQuery(consulta);
+      if ((Sqflite.firstIntValue(linhas) ?? 0) != 0) {
+        throw StateError(
+          'A migração foi cancelada porque há relações entre contextos diferentes. Os dados foram preservados.',
+        );
+      }
+    }
+  }
+
+  static Future<void> _criarGatilhoRelacao(
+    DatabaseExecutor db, {
+    required String nome,
+    required String tabela,
+    required String evento,
+    required String colunas,
+    required String condicao,
+  }) async {
+    final atualizacao = evento == 'UPDATE' ? ' OF $colunas' : '';
+    await db.execute('''
+      CREATE TRIGGER $nome
+      BEFORE $evento$atualizacao ON $tabela
+      WHEN $condicao
+      BEGIN
+        SELECT RAISE(ABORT, 'Relacionamento entre contextos diferentes.');
+      END
+    ''');
   }
 
   static String _novoUuid() {

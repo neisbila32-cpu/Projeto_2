@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/core/database/app_database.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/core/utils/texto_utils.dart';
 import 'package:projeto_2/features/produtos/data/catalogo_inicial.dart';
@@ -19,8 +20,14 @@ class CatalogoInicialRepository {
   Future<ResultadoImportacao> importar(int usuarioId) async {
     final db = await _appDb.database;
     return await db.transaction((txn) async {
+      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(txn);
       // a) Garantir unidade 'fr' (Frasco, fracionavel 0, ativa 1)
-      final unidadesExistentes = await txn.query('unidades', columns: ['sigla', 'id']);
+      final unidadesExistentes = await txn.query(
+        'unidades',
+        columns: ['sigla', 'id'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoId],
+      );
       final frExistente = unidadesExistentes.any(
         (u) => (u['sigla'] as String).toLowerCase() == 'fr',
       );
@@ -30,6 +37,7 @@ class CatalogoInicialRepository {
           'nome': 'Frasco',
           'fracionavel': 0,
           'ativa': 1,
+          'contexto_id': contextoId,
         });
       }
 
@@ -37,6 +45,8 @@ class CatalogoInicialRepository {
       final categoriasExistentes = await txn.query(
         'categorias',
         columns: ['id', 'nome', 'ativa'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoId],
       );
       final idsCategoriasCatalogo = <String, int>{};
       for (final catNome in categoriasCatalogo) {
@@ -52,16 +62,17 @@ class CatalogoInicialRepository {
             await txn.update(
               'categorias',
               {'ativa': 1},
-              where: 'id = ?',
-              whereArgs: [id],
+              where: 'id = ? AND contexto_id = ?',
+              whereArgs: [id, contextoId],
             );
           }
           idsCategoriasCatalogo[normalizado] = id;
         } else {
-          final id = await txn.insert(
-            'categorias',
-            {'nome': catNome, 'ativa': 1},
-          );
+          final id = await txn.insert('categorias', {
+            'nome': catNome,
+            'ativa': 1,
+            'contexto_id': contextoId,
+          });
           idsCategoriasCatalogo[normalizado] = id;
         }
       }
@@ -84,16 +95,16 @@ class CatalogoInicialRepository {
           final produtosUsando = await txn.query(
             'produtos',
             columns: ['id'],
-            where: 'categoria_id = ? AND ativo = 1',
-            whereArgs: [id],
+            where: 'categoria_id = ? AND contexto_id = ? AND ativo = 1',
+            whereArgs: [id, contextoId],
             limit: 1,
           );
           if (produtosUsando.isEmpty) {
             await txn.update(
               'categorias',
               {'ativa': 0},
-              where: 'id = ?',
-              whereArgs: [id],
+              where: 'id = ? AND contexto_id = ?',
+              whereArgs: [id, contextoId],
             );
           }
         }
@@ -103,16 +114,31 @@ class CatalogoInicialRepository {
       int criados = 0;
       int ignorados = 0;
 
-      final todasUnidades = await txn.query('unidades', columns: ['id', 'sigla']);
-      final todasCategorias =
-          await txn.query('categorias', columns: ['id', 'nome']);
-      final produtosExistentes =
-          await txn.query('produtos', columns: ['id', 'nome']);
+      final todasUnidades = await txn.query(
+        'unidades',
+        columns: ['id', 'sigla'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoId],
+      );
+      final todasCategorias = await txn.query(
+        'categorias',
+        columns: ['id', 'nome'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoId],
+      );
+      final produtosExistentes = await txn.query(
+        'produtos',
+        columns: ['id', 'nome'],
+        where: 'contexto_id = ?',
+        whereArgs: [contextoId],
+      );
 
       for (final item in catalogoInicial) {
         // Buscar unidade pela sigla
         final unidadeRow = todasUnidades.firstWhere(
-          (u) => (u['sigla'] as String).toLowerCase() == item.unidade.toLowerCase(),
+          (u) =>
+              (u['sigla'] as String).toLowerCase() ==
+              item.unidade.toLowerCase(),
           orElse: () => <String, Object?>{},
         );
         if (unidadeRow.isEmpty) {
@@ -124,7 +150,8 @@ class CatalogoInicialRepository {
 
         // Buscar categoria pelo nome (normalizado)
         final categoriaRow = todasCategorias.firstWhere(
-          (c) => TextoUtils.normalizar(c['nome'] as String) ==
+          (c) =>
+              TextoUtils.normalizar(c['nome'] as String) ==
               TextoUtils.normalizar(item.categoria),
           orElse: () => <String, Object?>{},
         );
@@ -153,6 +180,7 @@ class CatalogoInicialRepository {
           'ativo': 1,
           'criado_em': DateTime.now().toIso8601String(),
           'criado_por': usuarioId,
+          'contexto_id': contextoId,
         });
         criados++;
       }
@@ -163,7 +191,8 @@ class CatalogoInicialRepository {
   }
 }
 
-final catalogoInicialRepositoryProvider =
-    Provider<CatalogoInicialRepository>((ref) {
+final catalogoInicialRepositoryProvider = Provider<CatalogoInicialRepository>((
+  ref,
+) {
   return CatalogoInicialRepository(AppDatabase.instance);
 });

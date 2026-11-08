@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import 'package:projeto_2/core/database/app_database.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/produtos/models/unidade.dart';
 
@@ -11,9 +12,13 @@ class UnidadeRepository {
 
   Future<List<Unidade>> listar({bool incluirInativas = false}) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final rows = await db.query(
       'unidades',
-      where: incluirInativas ? null : 'ativa = 1',
+      where: incluirInativas
+          ? 'contexto_id = ?'
+          : 'contexto_id = ? AND ativa = 1',
+      whereArgs: [contextoId],
       orderBy: 'nome COLLATE NOCASE',
     );
     return rows.map(Unidade.fromMap).toList();
@@ -25,6 +30,7 @@ class UnidadeRepository {
     required bool fracionavel,
   }) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final siglaLimpa = sigla.trim();
     final nomeLimpo = nome.trim();
     if (siglaLimpa.isEmpty || nomeLimpo.isEmpty) {
@@ -35,7 +41,12 @@ class UnidadeRepository {
         'A sigla deve ter até 10 caracteres e não pode ter espaços.',
       );
     }
-    final rows = await db.query('unidades', columns: ['sigla']);
+    final rows = await db.query(
+      'unidades',
+      columns: ['sigla'],
+      where: 'contexto_id = ?',
+      whereArgs: [contextoId],
+    );
     final existe = rows.any(
       (r) => (r['sigla'] as String).toLowerCase() == siglaLimpa.toLowerCase(),
     );
@@ -47,15 +58,18 @@ class UnidadeRepository {
       'nome': nomeLimpo,
       'fracionavel': fracionavel ? 1 : 0,
       'ativa': 1,
+      'contexto_id': contextoId,
     });
   }
 
   Future<void> definirAtiva(int id, bool ativa) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     if (!ativa) {
       final r = await db.rawQuery(
-        'SELECT COUNT(*) AS n FROM produtos WHERE unidade_id = ? AND ativo = 1',
-        [id],
+        'SELECT COUNT(*) AS n FROM produtos '
+        'WHERE unidade_id = ? AND contexto_id = ? AND ativo = 1',
+        [id, contextoId],
       );
       if ((Sqflite.firstIntValue(r) ?? 0) > 0) {
         throw const AppException(
@@ -66,8 +80,8 @@ class UnidadeRepository {
     await db.update(
       'unidades',
       {'ativa': ativa ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? AND contexto_id = ?',
+      whereArgs: [id, contextoId],
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/movimentacoes/models/movimentacao.dart';
 import 'package:projeto_2/features/movimentacoes/models/movimentacao_regras.dart';
@@ -22,11 +23,13 @@ class MovimentacaoRepository {
   }) async {
     final db = await _obterBanco();
     return db.transaction<ResultadoMovimento>((txn) async {
+      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(txn);
       final linhas = await txn.rawQuery(
         'SELECT p.saldo AS saldo, p.ativo AS ativo, u.fracionavel AS fracionavel '
         'FROM produtos p JOIN unidades u ON u.id = p.unidade_id '
-        'WHERE p.id = ?',
-        [produtoId],
+        'AND u.contexto_id = p.contexto_id '
+        'WHERE p.id = ? AND p.contexto_id = ?',
+        [produtoId, contextoId],
       );
       if (linhas.isEmpty) {
         throw AppException('Produto não encontrado.');
@@ -58,13 +61,14 @@ class MovimentacaoRepository {
         'usuario_id': usuarioId,
         'observacao': (obs == null || obs.isEmpty) ? null : obs,
         'inventario_id': inventarioId,
+        'contexto_id': contextoId,
       });
 
       final alterados = await txn.update(
         'produtos',
         {'saldo': resultado.saldoApos},
-        where: 'id = ? AND saldo = ?',
-        whereArgs: [produtoId, saldoAtual],
+        where: 'id = ? AND contexto_id = ? AND saldo = ?',
+        whereArgs: [produtoId, contextoId, saldoAtual],
       );
       if (alterados != 1) {
         throw AppException('O saldo do produto mudou. Tente novamente.');
@@ -73,14 +77,19 @@ class MovimentacaoRepository {
     });
   }
 
-  Future<List<Movimentacao>> ultimasDoProduto(int produtoId,
-      {int limite = 10}) async {
+  Future<List<Movimentacao>> ultimasDoProduto(
+    int produtoId, {
+    int limite = 10,
+  }) async {
     final db = await _obterBanco();
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final linhas = await db.rawQuery(
       'SELECT m.*, u.nome AS usuario_nome FROM movimentacoes m '
       'JOIN usuarios u ON u.id = m.usuario_id '
-      'WHERE m.produto_id = ? ORDER BY m.data_hora DESC, m.id DESC LIMIT ?',
-      [produtoId, limite],
+      'AND u.contexto_id = m.contexto_id '
+      'WHERE m.produto_id = ? AND m.contexto_id = ? '
+      'ORDER BY m.data_hora DESC, m.id DESC LIMIT ?',
+      [produtoId, contextoId, limite],
     );
     return linhas.map(Movimentacao.fromMap).toList();
   }

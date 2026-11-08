@@ -1,4 +1,5 @@
-﻿import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/features/painel/models/painel_dados.dart';
 
 class PainelRepository {
@@ -6,14 +7,19 @@ class PainelRepository {
 
   final Future<Database> Function() _obterBanco;
 
-  static const String _periodo = 'm.data_hora >= ? AND m.data_hora < ?';
+  static const String _periodo =
+      'm.contexto_id = ? AND m.data_hora >= ? AND m.data_hora < ?';
 
-  Future<PainelDados> carregar(Intervalo intervalo,
-      {int limiteRanking = 10}) async {
+  Future<PainelDados> carregar(
+    Intervalo intervalo, {
+    int limiteRanking = 10,
+  }) async {
     final db = await _obterBanco();
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final i = intervalo.inicio;
     final f = intervalo.fim;
     final args = <Object?>[
+      contextoId,
       DateTime(i.year, i.month, i.day).toIso8601String(),
       DateTime(f.year, f.month, f.day + 1).toIso8601String(),
     ];
@@ -48,8 +54,8 @@ class PainelRepository {
     final categorias = await db.rawQuery(
       'SELECT c.nome AS nome, COUNT(*) AS total '
       'FROM movimentacoes m '
-      'JOIN produtos p ON p.id = m.produto_id '
-      'JOIN categorias c ON c.id = p.categoria_id '
+      'JOIN produtos p ON p.id = m.produto_id AND p.contexto_id = m.contexto_id '
+      'JOIN categorias c ON c.id = p.categoria_id AND c.contexto_id = m.contexto_id '
       "WHERE m.tipo = 'saida' AND $_periodo "
       'GROUP BY c.id ORDER BY total DESC, c.nome COLLATE NOCASE LIMIT ?',
       [...args, limiteRanking],
@@ -59,9 +65,9 @@ class PainelRepository {
       'SELECT p.nome AS nome, un.sigla AS sigla, un.fracionavel AS fracionavel, '
       'c.nome AS categoria, COUNT(*) AS total, -SUM(m.delta) AS quantidade '
       'FROM movimentacoes m '
-      'JOIN produtos p ON p.id = m.produto_id '
-      'JOIN unidades un ON un.id = p.unidade_id '
-      'JOIN categorias c ON c.id = p.categoria_id '
+      'JOIN produtos p ON p.id = m.produto_id AND p.contexto_id = m.contexto_id '
+      'JOIN unidades un ON un.id = p.unidade_id AND un.contexto_id = m.contexto_id '
+      'JOIN categorias c ON c.id = p.categoria_id AND c.contexto_id = m.contexto_id '
       "WHERE m.tipo = 'saida' AND $_periodo "
       'GROUP BY p.id '
       'ORDER BY total DESC, quantidade DESC, p.nome COLLATE NOCASE LIMIT ?',
@@ -86,21 +92,25 @@ class PainelRepository {
         ajustes: ajustes,
       ),
       porCategoria: categorias
-          .map((l) => ItemRanking(
-                nome: l['nome'] as String,
-                saidas: l['total'] as int,
-                categoria: l['nome'] as String,
-              ))
+          .map(
+            (l) => ItemRanking(
+              nome: l['nome'] as String,
+              saidas: l['total'] as int,
+              categoria: l['nome'] as String,
+            ),
+          )
           .toList(),
       porProduto: produtos
-          .map((l) => ItemRanking(
-                nome: l['nome'] as String,
-                saidas: l['total'] as int,
-                categoria: l['categoria'] as String,
-                quantidade: l['quantidade'] as int,
-                unidadeSigla: l['sigla'] as String,
-                fracionavel: (l['fracionavel'] as int) == 1,
-              ))
+          .map(
+            (l) => ItemRanking(
+              nome: l['nome'] as String,
+              saidas: l['total'] as int,
+              categoria: l['categoria'] as String,
+              quantidade: l['quantidade'] as int,
+              unidadeSigla: l['sigla'] as String,
+              fracionavel: (l['fracionavel'] as int) == 1,
+            ),
+          )
           .toList(),
       porDia: PainelCalculos.preencherDias(intervalo, contagem),
     );

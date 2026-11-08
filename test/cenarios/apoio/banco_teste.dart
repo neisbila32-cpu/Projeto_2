@@ -15,9 +15,10 @@ Future<Database> abrirBancoEmMemoria() async {
   final db = await databaseFactoryFfi.openDatabase(
     ':memory:',
     options: OpenDatabaseOptions(
-      version: 1,
+      version: AppDatabase.versaoAtual,
       onConfigure: AppDatabase.configurarBanco,
-      onCreate: AppDatabase.criarEsquema,
+      onCreate: AppDatabase.criarEsquemaAtual,
+      onUpgrade: AppDatabase.migrarEsquema,
     ),
   );
   AppDatabase.injetarBancoParaTestes(db);
@@ -26,7 +27,8 @@ Future<Database> abrirBancoEmMemoria() async {
 
 /// Retorna uma fábrica [`Future<Database> Function()`] que sempre devolve o
 /// [db] em memória criado. Útil para injetar em `MovimentacaoRepository`.
-Future<Database> Function() bancoTesteFactory(Database db) => () async => db;
+Future<Database> Function() bancoTesteFactory(Database db) =>
+    () async => db;
 
 /// Remove todos os dados de todas as tabelas (respeitando foreign keys),
 /// deixando o banco limpo para o próximo teste. Não dropa as tabelas nem os

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/utils/app_exception.dart';
 
 class BackupService {
@@ -8,9 +9,9 @@ class BackupService {
     required Future<Database> Function() obterBanco,
     required Future<void> Function() fecharBanco,
     required Future<String> Function() caminhoBanco,
-  })  : _obterBanco = obterBanco,
-        _fecharBanco = fecharBanco,
-        _caminhoBanco = caminhoBanco;
+  }) : _obterBanco = obterBanco,
+       _fecharBanco = fecharBanco,
+       _caminhoBanco = caminhoBanco;
 
   final Future<Database> Function() _obterBanco;
   final Future<void> Function() _fecharBanco;
@@ -45,6 +46,13 @@ class BackupService {
 
   Future<void> _copiarBancoAtual(String destino) async {
     final db = await _obterBanco();
+    if (await db.getVersion() >= 2) {
+      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
+      await ContextoTrabalhoRepository.validarBancoIndividual(
+        db,
+        contextoEsperado: contextoId,
+      );
+    }
     await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
     final caminho = await _caminhoBanco();
     await File(caminho).copy(destino);
@@ -78,10 +86,14 @@ class BackupService {
 
     Database? bd;
     try {
-      bd = await openDatabase(arquivo.path,
-          readOnly: true, singleInstance: false);
-      final linhas = await bd
-          .rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'");
+      bd = await openDatabase(
+        arquivo.path,
+        readOnly: true,
+        singleInstance: false,
+      );
+      final linhas = await bd.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      );
       final tabelas = linhas.map((l) => l['name'] as String).toSet();
       for (final t in _tabelasObrigatorias) {
         if (!tabelas.contains(t)) {
@@ -99,7 +111,11 @@ class BackupService {
       }
       if (versaoBackup > versaoAtual) {
         throw AppException(
-            'Este backup foi criado por uma versão mais nova do app.');
+          'Este backup foi criado por uma versão mais nova do app.',
+        );
+      }
+      if (versaoBackup >= 2) {
+        await ContextoTrabalhoRepository.validarBancoIndividual(bd);
       }
     } on AppException {
       rethrow;
@@ -133,14 +149,14 @@ class BackupService {
   Future<void> restaurar(File origem) async {
     await validarArquivo(origem);
     final caminho = await _caminhoBanco();
-    final seguranca =
-        '$caminho.pre_restauracao_${carimbo(DateTime.now())}.bak';
+    final seguranca = '$caminho.pre_restauracao_${carimbo(DateTime.now())}.bak';
 
     try {
       await _copiarBancoAtual(seguranca);
     } catch (_) {
       throw AppException(
-          'Não foi possível guardar a cópia de segurança. Nada foi alterado.');
+        'Não foi possível guardar a cópia de segurança. Nada foi alterado.',
+      );
     }
 
     await _fecharBanco();
@@ -157,7 +173,8 @@ class BackupService {
     } catch (_) {
       await _reverter(caminho, seguranca);
       throw AppException(
-          'Não foi possível restaurar o backup. Seus dados anteriores foram mantidos.');
+        'Não foi possível restaurar o backup. Seus dados anteriores foram mantidos.',
+      );
     }
   }
 }

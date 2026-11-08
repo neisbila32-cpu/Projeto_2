@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:projeto_2/core/database/contexto_trabalho_repository.dart';
 import 'package:projeto_2/core/database/app_database.dart';
 import 'package:projeto_2/core/utils/password_hasher.dart';
 import 'package:projeto_2/core/utils/texto_utils.dart';
@@ -21,7 +22,11 @@ class UsuarioRepository {
 
   Future<bool> existeAlgumUsuario() async {
     final db = await _appDb.database;
-    final r = await db.rawQuery('SELECT COUNT(*) AS n FROM usuarios');
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
+    final r = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM usuarios WHERE contexto_id = ?',
+      [contextoId],
+    );
     return (Sqflite.firstIntValue(r) ?? 0) > 0;
   }
 
@@ -37,6 +42,7 @@ class UsuarioRepository {
     required String senha,
   }) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final nomeLimpo = nome.trim();
     final loginLimpo = login.trim().toLowerCase();
 
@@ -54,9 +60,12 @@ class UsuarioRepository {
     final todos = await db.query(
       'usuarios',
       columns: ['login'],
+      where: 'contexto_id = ?',
+      whereArgs: [contextoId],
     );
     final duplicata = todos.any(
-      (r) => TextoUtils.normalizar(r['login'] as String) == loginNovoNormalizado,
+      (r) =>
+          TextoUtils.normalizar(r['login'] as String) == loginNovoNormalizado,
     );
 
     if (duplicata) {
@@ -90,6 +99,7 @@ class UsuarioRepository {
       'recup_salt': recupSalt,
       'ativo': 1,
       'criado_em': DateTime.now().toIso8601String(),
+      'contexto_id': contextoId,
     });
 
     return codigo;
@@ -100,10 +110,11 @@ class UsuarioRepository {
     required String senha,
   }) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final rows = await db.query(
       'usuarios',
-      where: 'login = ?',
-      whereArgs: [login.trim().toLowerCase()],
+      where: 'login = ? AND contexto_id = ?',
+      whereArgs: [login.trim().toLowerCase(), contextoId],
       limit: 1,
     );
 
@@ -128,10 +139,11 @@ class UsuarioRepository {
 
   Future<Usuario?> buscarPorId(int id) async {
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final rows = await db.query(
       'usuarios',
-      where: 'id = ? AND ativo = 1',
-      whereArgs: [id],
+      where: 'id = ? AND contexto_id = ? AND ativo = 1',
+      whereArgs: [id, contextoId],
       limit: 1,
     );
     return rows.isEmpty ? null : Usuario.fromMap(rows.first);
@@ -144,10 +156,11 @@ class UsuarioRepository {
   }) async {
     _validarSenha(novaSenha);
     final db = await _appDb.database;
+    final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(db);
     final rows = await db.query(
       'usuarios',
-      where: "login = ? AND perfil = 'admin' AND ativo = 1",
-      whereArgs: [login.trim().toLowerCase()],
+      where: "login = ? AND contexto_id = ? AND perfil = 'admin' AND ativo = 1",
+      whereArgs: [login.trim().toLowerCase(), contextoId],
       limit: 1,
     );
 
@@ -186,8 +199,8 @@ class UsuarioRepository {
         'recup_hash': novoRecupHash,
         'recup_salt': novoRecupSalt,
       },
-      where: 'id = ?',
-      whereArgs: [row['id']],
+      where: 'id = ? AND contexto_id = ?',
+      whereArgs: [row['id'], contextoId],
     );
 
     return novoCodigo;
