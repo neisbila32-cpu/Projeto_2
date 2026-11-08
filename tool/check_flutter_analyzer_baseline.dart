@@ -42,15 +42,13 @@ Future<void> main() async {
 
   final actualCounts = <String, int>{};
   final unexpected = <String>[];
-  for (final rawLine in (result.stdout as String).split(RegExp(r'\r?\n'))) {
+  final output = '${result.stdout}\n${result.stderr}';
+  for (final rawLine in output.split(RegExp(r'\r?\n'))) {
     final fields = rawLine.split('|');
-    if (fields.length < 5) continue;
-
-    final severity = fields[0].toLowerCase();
-    if (!{'error', 'warning', 'info'}.contains(severity)) continue;
-    final code = fields[2].toLowerCase();
-    final path = _projectRelativePath(fields[3]);
-    final key = '$severity|$code|$path';
+    final key = fields.length >= 5
+        ? _machineDiagnosticKey(fields)
+        : _humanDiagnosticKey(rawLine);
+    if (key == null) continue;
     actualCounts.update(key, (count) => count + 1, ifAbsent: () => 1);
   }
 
@@ -71,11 +69,10 @@ Future<void> main() async {
     }
   }
 
-  if (result.exitCode != 0 && actualCounts.isEmpty) {
-    stderr.write(result.stderr);
-    stderr.write(result.stdout);
+  if (actualCounts.isEmpty && !output.contains('No issues found!')) {
+    stderr.write(output);
     stderr.writeln('flutter analyze terminou com código ${result.exitCode}.');
-    exit(result.exitCode);
+    exit(result.exitCode == 0 ? 1 : result.exitCode);
   }
   if (unexpected.isNotEmpty) {
     stderr.writeln(
@@ -92,6 +89,25 @@ Future<void> main() async {
     'Análise global aprovada: ${actualCounts.values.fold<int>(0, (a, b) => a + b)} '
     'diagnóstico(s), todos dentro do baseline documentado.',
   );
+}
+
+String? _machineDiagnosticKey(List<String> fields) {
+  final severity = fields[0].toLowerCase();
+  if (!{'error', 'warning', 'info'}.contains(severity)) return null;
+  final code = fields[2].toLowerCase();
+  final path = _projectRelativePath(fields[3]);
+  return '$severity|$code|$path';
+}
+
+String? _humanDiagnosticKey(String line) {
+  final match = RegExp(
+    r'^\s*(error|warning|info)\s+•.*•\s+(.+?):\d+:\d+\s+•\s+([a-zA-Z0-9_]+)\s*$',
+  ).firstMatch(line);
+  if (match == null) return null;
+  final severity = match.group(1)!.toLowerCase();
+  final path = _projectRelativePath(match.group(2)!);
+  final code = match.group(3)!.toLowerCase();
+  return '$severity|$code|$path';
 }
 
 String _projectRelativePath(String path) {
