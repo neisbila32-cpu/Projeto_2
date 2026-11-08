@@ -1,0 +1,83 @@
+name: Testes do backend Supabase
+
+on:
+  push:
+    branches:
+      - codex/supabase-ci
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-tests.yml"
+  pull_request:
+    branches:
+      - master
+      - codex/supabase-ci
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-tests:
+    if: github.event_name == 'push' || github.head_ref == 'codex/supabase-ci' || github.base_ref == 'codex/supabase-ci'
+    name: PostgreSQL + pgTAP + concorrência
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Baixar o código da branch
+        uses: actions/checkout@v4
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+
+      - name: Iniciar Supabase local descartável
+        run: supabase start
+
+      - name: Aplicar migrações em banco local limpo
+        run: supabase db reset --local --no-seed
+
+      - name: Executar testes pgTAP
+        run: supabase test db
+
+      - name: Instalar cliente PostgreSQL para o teste concorrente
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client
+
+      - name: Preparar fixture descartável para a concorrência
+        id: fixture
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          output="$(psql "$DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 \
+            -f supabase/scripts/prepare_concurrent_invite.sql)"
+          workspace_id="$(printf '%s\n' "$output" | sed -n 's/^WORKSPACE_ID=//p')"
+          invite_code="$(printf '%s\n' "$output" | sed -n 's/^INVITE_CODE=//p')"
+          test -n "$workspace_id"
+          test -n "$invite_code"
+          echo "::add-mask::$invite_code"
+          {
+            echo "workspace_id=$workspace_id"
+            echo "invite_code=$invite_code"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Executar disputa simultânea pelo convite
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          WORKSPACE_ID: ${{ steps.fixture.outputs.workspace_id }}
+          INVITED_USER_ID: e3100000-0000-4000-8000-000000000002
+          INVITED_EMAIL: operador-corrida@exemplo.test
+          INVITE_CODE: ${{ steps.fixture.outputs.invite_code }}
+        run: sh supabase/tests/concurrent_invite_acceptance.sh
+
+      - name: Encerrar Supabase local
+        if: always()
+        run: supabase stop --no-backup
