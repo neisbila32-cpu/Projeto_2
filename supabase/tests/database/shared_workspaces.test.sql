@@ -151,16 +151,12 @@ SELECT is(
   'a validade configurada é persistida no servidor'
 );
 
-SELECT set_config('test.revoked_code', (
-  SELECT invite_code FROM public.issue_workspace_invite(
-    current_setting('test.workspace_id')::uuid, 'intruso@exemplo.test'
-  )
-), true);
-SELECT set_config('test.revoked_invite_id', (
-  SELECT id::text FROM public.workspace_invites
-  WHERE token_hash = extensions.digest(
-    convert_to(current_setting('test.revoked_code'), 'UTF8'), 'sha256')
-), true);
+SELECT
+  set_config('test.revoked_invite_id', invite_id::text, true),
+  set_config('test.revoked_code', invite_code, true)
+FROM public.issue_workspace_invite(
+  current_setting('test.workspace_id')::uuid, 'intruso@exemplo.test'
+);
 SELECT lives_ok(
   format('SELECT public.revoke_workspace_invite(%L::uuid, %L::uuid)',
     current_setting('test.workspace_id'), current_setting('test.revoked_invite_id')),
