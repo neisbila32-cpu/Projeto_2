@@ -1,0 +1,76 @@
+name: Validacao Flutter
+
+on:
+  push:
+    branches:
+      - codex/supabase-auth
+    paths:
+      - "lib/main.dart"
+      - "lib/core/routes/**"
+      - "lib/core/supabase/**"
+      - "lib/features/auth/**"
+      - "lib/features/home/widgets/app_drawer.dart"
+      - "android/app/src/main/AndroidManifest.xml"
+      - "test/**"
+      - "tool/check_flutter_analyzer_baseline.dart"
+      - "docs/validacao_flutter.md"
+      - "supabase/FLUTTER_AUTH_DEVELOPMENT.md"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/flutter-validation.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "lib/main.dart"
+      - "lib/core/routes/**"
+      - "lib/core/supabase/**"
+      - "lib/features/auth/**"
+      - "lib/features/home/widgets/app_drawer.dart"
+      - "android/app/src/main/AndroidManifest.xml"
+      - "test/**"
+      - "tool/check_flutter_analyzer_baseline.dart"
+      - "docs/validacao_flutter.md"
+      - "supabase/FLUTTER_AUTH_DEVELOPMENT.md"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/flutter-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    name: Analise direcionada e testes Flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.5
+          cache: true
+
+      - name: Resolver dependencias
+        run: flutter pub get
+
+      - name: Preparar SQLite para os testes FFI
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libsqlite3-dev
+
+      # O script compara a análise global com a lista documentada. Diagnósticos
+      # novos, mudanças de quantidade ou erros de compilação fazem o job falhar.
+      - name: Analisar todo o projeto e validar o baseline
+        run: dart run tool/check_flutter_analyzer_baseline.dart
+
+      - name: Executar suíte Flutter
+        run: flutter test --no-pub
