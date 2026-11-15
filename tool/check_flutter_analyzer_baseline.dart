@@ -101,7 +101,7 @@ String? _machineDiagnosticKey(List<String> fields) {
 
 String? _humanDiagnosticKey(String line) {
   final match = RegExp(
-    r'^\s*(error|warning|info)\s+•.*•\s+(.+?):\d+:\d+\s+•\s+([a-zA-Z0-9_]+)\s*$',
+    r'^\s*(error|warning|info)\s+[-•].*[-•]\s+(.+?):\d+:\d+\s+[-•]\s+([a-zA-Z0-9_]+)\s*$',
   ).firstMatch(line);
   if (match == null) return null;
   final severity = match.group(1)!.toLowerCase();
