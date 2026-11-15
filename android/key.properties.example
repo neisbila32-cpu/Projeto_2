@@ -1,0 +1,6 @@
+# Copie para android/key.properties e preencha apenas na máquina de assinatura.
+# storeFile é relativo à pasta android/ (por exemplo: app/estoque-uan-release.jks).
+storeFile=
+keyAlias=
+keyPassword=
+storePassword=
