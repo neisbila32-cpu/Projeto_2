@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:projeto_2/core/utils/app_exception.dart';
 import 'package:projeto_2/features/produtos/models/unidade.dart';
@@ -16,11 +15,13 @@ class UnidadesScreen extends ConsumerStatefulWidget {
 
 class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
   Future<void> _novaUnidade() async {
-    final siglaController = TextEditingController();
-    final nomeController = TextEditingController();
+    var sigla = '';
+    var nome = '';
     bool fracionavel = false;
 
-    final resultado = await showDialog<bool>(
+    final resultado = await showDialog<
+      ({String sigla, String nome, bool fracionavel})
+    >(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
@@ -29,14 +30,15 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: siglaController,
                 decoration: const InputDecoration(labelText: 'Sigla'),
                 autofocus: true,
+                textCapitalization: TextCapitalization.none,
+                onChanged: (valor) => sigla = valor,
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: nomeController,
                 decoration: const InputDecoration(labelText: 'Nome'),
+                onChanged: (valor) => nome = valor,
               ),
               const SizedBox(height: 12),
               SwitchListTile(
@@ -50,11 +52,15 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => context.pop(false),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => context.pop(true),
+              onPressed: () => Navigator.of(dialogContext).pop((
+                sigla: sigla,
+                nome: nome,
+                fracionavel: fracionavel,
+              )),
               child: const Text('Salvar'),
             ),
           ],
@@ -62,19 +68,17 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
       ),
     );
 
-    siglaController.dispose();
-    nomeController.dispose();
-
     if (!mounted) return;
-    if (resultado != true) return;
-
-    final sigla = siglaController.text.trim();
-    final nome = nomeController.text.trim();
+    if (resultado == null) return;
 
     try {
       await ref
           .read(unidadeRepositoryProvider)
-          .criar(sigla: sigla, nome: nome, fracionavel: fracionavel);
+          .criar(
+            sigla: resultado.sigla,
+            nome: resultado.nome,
+            fracionavel: resultado.fracionavel,
+          );
       if (!mounted) return;
       ref.invalidate(unidadesTodasProvider);
       ref.invalidate(unidadesAtivasProvider);
@@ -83,6 +87,49 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro inesperado. Tente novamente.')),
+      );
+    }
+  }
+
+  Future<void> _excluir(Unidade unidade) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir unidade?'),
+        content: Text(
+          'A unidade ${unidade.rotulo} será excluída permanentemente. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmado != true) return;
+    try {
+      await ref.read(unidadeRepositoryProvider).excluir(unidade.id);
+      if (!mounted) return;
+      ref.invalidate(unidadesTodasProvider);
+      ref.invalidate(unidadesAtivasProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unidade excluída.')),
+      );
+    } on AppException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,12 +193,18 @@ class _UnidadesScreenState extends ConsumerState<UnidadesScreen> {
                       await _definirAtiva(unidade, true);
                     } else if (valor == 'inativar') {
                       await _definirAtiva(unidade, false);
+                    } else if (valor == 'excluir') {
+                      await _excluir(unidade);
                     }
                   },
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: unidade.ativa ? 'inativar' : 'ativar',
                       child: Text(unidade.ativa ? 'Inativar' : 'Reativar'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'excluir',
+                      child: Text('Excluir'),
                     ),
                   ],
                 ),

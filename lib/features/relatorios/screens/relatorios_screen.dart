@@ -11,6 +11,8 @@ import 'package:projeto_2/features/relatorios/providers/relatorio_providers.dart
 import 'package:projeto_2/features/relatorios/services/relatorio_compartilhamento.dart';
 import 'package:projeto_2/features/relatorios/services/relatorio_pdf.dart';
 
+enum _ModoPeriodoRelatorio { dia, intervalo }
+
 class RelatoriosScreen extends ConsumerStatefulWidget {
   const RelatoriosScreen({super.key});
 
@@ -21,6 +23,7 @@ class RelatoriosScreen extends ConsumerStatefulWidget {
 class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
   late DateTime _inicio;
   late DateTime _fim;
+  _ModoPeriodoRelatorio _modoPeriodo = _ModoPeriodoRelatorio.intervalo;
   bool _exportando = false;
 
   @override
@@ -42,7 +45,24 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
       '${data.minute.toString().padLeft(2, '0')}-'
       '${data.second.toString().padLeft(2, '0')}';
 
-  Future<void> _selecionarPeriodo() async {
+  Future<void> _selecionarDia() async {
+    final hoje = DateTime.now();
+    final selecionado = await showDatePicker(
+      context: context,
+      initialDate: _fim.isAfter(hoje) ? hoje : _fim,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(hoje.year, hoje.month, hoje.day),
+      helpText: 'Selecione o dia do relatório',
+      confirmText: 'Aplicar',
+    );
+    if (!mounted || selecionado == null) return;
+    setState(() {
+      _inicio = DateTime(selecionado.year, selecionado.month, selecionado.day);
+      _fim = _inicio;
+    });
+  }
+
+  Future<void> _selecionarIntervalo() async {
     final hoje = DateTime.now();
     final selecionado = await showDateRangePicker(
       context: context,
@@ -261,11 +281,44 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.date_range),
-                title: const Text('Período das movimentações'),
-                subtitle: Text('${_data(_inicio)} a ${_data(_fim)}'),
+                title: Text(
+                  _modoPeriodo == _ModoPeriodoRelatorio.dia
+                      ? 'Dia das movimentações'
+                      : 'Intervalo das movimentações',
+                ),
+                subtitle: Text(
+                  _modoPeriodo == _ModoPeriodoRelatorio.dia
+                      ? 'Dia selecionado: ${_data(_inicio)}'
+                      : 'Período selecionado: ${_data(_inicio)} a ${_data(_fim)}',
+                ),
                 trailing: const Icon(Icons.edit_calendar_outlined),
-                onTap: _selecionarPeriodo,
+                onTap: _modoPeriodo == _ModoPeriodoRelatorio.dia
+                    ? _selecionarDia
+                    : _selecionarIntervalo,
               ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<_ModoPeriodoRelatorio>(
+              segments: const [
+                ButtonSegment(
+                  value: _ModoPeriodoRelatorio.dia,
+                  label: Text('Um dia'),
+                  icon: Icon(Icons.today_outlined),
+                ),
+                ButtonSegment(
+                  value: _ModoPeriodoRelatorio.intervalo,
+                  label: Text('Intervalo'),
+                  icon: Icon(Icons.date_range_outlined),
+                ),
+              ],
+              selected: {_modoPeriodo},
+              onSelectionChanged: (selecionado) {
+                final modo = selecionado.first;
+                setState(() {
+                  _modoPeriodo = modo;
+                  if (modo == _ModoPeriodoRelatorio.dia) _fim = _inicio;
+                });
+              },
             ),
             const SizedBox(height: 8),
             _estado(estoque, _cartaoEstoque),

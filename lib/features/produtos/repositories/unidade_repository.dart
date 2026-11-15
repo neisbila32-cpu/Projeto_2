@@ -84,4 +84,30 @@ class UnidadeRepository {
       whereArgs: [id, contextoId],
     );
   }
+
+  Future<void> excluir(int id) async {
+    final db = await _appDb.database;
+    await db.transaction((txn) async {
+      final contextoId = await ContextoTrabalhoRepository.exigirIdAtivo(txn);
+      final vinculados = await txn.rawQuery(
+        'SELECT COUNT(*) AS total FROM produtos '
+        'WHERE unidade_id = ? AND contexto_id = ?',
+        [id, contextoId],
+      );
+      if ((Sqflite.firstIntValue(vinculados) ?? 0) > 0) {
+        throw const AppException(
+          'Esta unidade está em uso por produtos e não pode ser excluída. '
+          'Mantenha-a inativa para preservar o histórico.',
+        );
+      }
+      final removidas = await txn.delete(
+        'unidades',
+        where: 'id = ? AND contexto_id = ?',
+        whereArgs: [id, contextoId],
+      );
+      if (removidas == 0) {
+        throw const AppException('A unidade não foi encontrada.');
+      }
+    });
+  }
 }

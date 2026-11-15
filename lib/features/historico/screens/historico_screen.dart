@@ -105,7 +105,6 @@ class _Filtros extends ConsumerWidget {
     final hojeInicio = DateTime(hoje.year, hoje.month, hoje.day);
     final diaSeis = hojeInicio.subtract(const Duration(days: 6));
     final diaVinteENove = hojeInicio.subtract(const Duration(days: 29));
-    final mesInicio = DateTime(hoje.year, hoje.month, 1);
 
     final temPeriodo = filtro.inicio != null || filtro.fim != null;
     final tudoSelecionado = filtro.inicio == null && filtro.fim == null;
@@ -124,18 +123,12 @@ class _Filtros extends ConsumerWidget {
         filtro.fim != null &&
         _mesmoDia(filtro.inicio!, diaVinteENove) &&
         _mesmoDia(filtro.fim!, hoje);
-    final mesSelecionado =
-        filtro.inicio != null &&
-        filtro.fim != null &&
-        _mesmoDia(filtro.inicio!, mesInicio) &&
-        _mesmoDia(filtro.fim!, hoje);
     final personalizadoSelecionado =
         temPeriodo &&
         !tudoSelecionado &&
         !hojeSelecionado &&
         !seteSelecionado &&
-        !trintaSelecionado &&
-        !mesSelecionado;
+        !trintaSelecionado;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,14 +197,6 @@ class _Filtros extends ConsumerWidget {
                 onSelected: (_) => ref
                     .read(historicoFiltroProvider.notifier)
                     .setPeriodo(diaVinteENove, hojeInicio),
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('Este mês'),
-                selected: mesSelecionado,
-                onSelected: (_) => ref
-                    .read(historicoFiltroProvider.notifier)
-                    .setPeriodo(mesInicio, hojeInicio),
               ),
               const SizedBox(width: 8),
               ChoiceChip(
