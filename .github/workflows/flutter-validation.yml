@@ -3,18 +3,17 @@ name: Validacao Flutter
 on:
   push:
     branches:
-      - codex/supabase-auth
+      - codex/offline-only
     paths:
       - "lib/main.dart"
       - "lib/core/routes/**"
-      - "lib/core/supabase/**"
       - "lib/features/auth/**"
       - "lib/features/home/widgets/app_drawer.dart"
       - "android/app/src/main/AndroidManifest.xml"
       - "test/**"
       - "tool/check_flutter_analyzer_baseline.dart"
       - "docs/validacao_flutter.md"
-      - "supabase/FLUTTER_AUTH_DEVELOPMENT.md"
+      - "README.md"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/flutter-validation.yml"
@@ -24,14 +23,13 @@ on:
     paths:
       - "lib/main.dart"
       - "lib/core/routes/**"
-      - "lib/core/supabase/**"
       - "lib/features/auth/**"
       - "lib/features/home/widgets/app_drawer.dart"
       - "android/app/src/main/AndroidManifest.xml"
       - "test/**"
       - "tool/check_flutter_analyzer_baseline.dart"
       - "docs/validacao_flutter.md"
-      - "supabase/FLUTTER_AUTH_DEVELOPMENT.md"
+      - "README.md"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/flutter-validation.yml"

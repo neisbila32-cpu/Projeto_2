@@ -150,12 +150,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: () => context.go('/recuperar-senha'),
                 child: const Text('Esqueci minha senha'),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => context.go('/areas-compartilhadas'),
-                icon: const Icon(Icons.groups_outlined),
-                label: const Text('Áreas compartilhadas'),
-              ),
             ],
           ),
         ),

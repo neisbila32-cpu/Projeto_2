@@ -1,13 +1,11 @@
 # Diagnósticos legados do Flutter
 
 Referência da análise global em **08/11/2026**, com Flutter 3.44.5 e Dart
-3.12.2, sobre a base integrada `d8bbdc7` (master após o PR #2). Esses
-diagnósticos já existem fora da implementação de autenticação remota desta
-etapa. O workflow `.github/workflows/flutter-validation.yml` faz análise com
-avisos e informações fatais nos arquivos de autenticação, roteamento, providers
-Supabase e Drawer alterados, além de executar a suíte completa. Assim, o
-baseline alheio a este escopo não mascara novos diagnósticos na superfície
-alterada.
+3.12.2, sobre a base integrada `d8bbdc7` (master após o PR #2). Os
+diagnósticos listados abaixo são anteriores à consolidação offline. O workflow
+`.github/workflows/flutter-validation.yml` analisa a aplicação e executa a
+suíte completa; a validação local desta etapa também compara a análise global
+com este baseline para detectar novos diagnósticos.
 
 ## Avisos existentes na base
 
@@ -44,10 +42,6 @@ alterada.
 | `test/painel_repository_test.dart:43` | `no_leading_underscores_for_local_identifiers` | Variável local `_inserirMov` começa com `_`. |
 
 Em um checkout Git limpo, a análise global da base informa **24 diagnósticos**:
-3 avisos e 21 informações. O diretório de trabalho usado nesta etapa também
-contém o arquivo preexistente e não rastreado
-`test/backup_exportacao_arquivo_test.dart`, que acrescenta duas informações
-locais (`no_leading_underscores_for_local_identifiers:35` e
-`await_only_futures:43`); ele não faz parte do baseline publicado nem desta
-alteração. Por isso, a análise global local informa 26 diagnósticos. Nenhum
-diagnóstico da análise direcionada desta etapa foi encontrado.
+3 avisos e 21 informações. O verificador reconhece os formatos de saída do
+analisador Flutter atual e compara severidade, código e caminho para impedir
+que novos diagnósticos passem despercebidos.

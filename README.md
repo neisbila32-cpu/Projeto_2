@@ -1,6 +1,6 @@
 # Estoque UAN
 
-Aplicativo Flutter local para controlar o estoque de uma Unidade de Alimentação e Nutrição (UAN). Os dados ficam no banco SQLite do aparelho.
+Aplicativo Flutter exclusivamente offline para controlar o estoque de uma Unidade de Alimentação e Nutrição (UAN). O SQLite no aparelho é a fonte de verdade dos dados. Login, cadastro e recuperação de acesso são locais; não há autenticação remota nem sincronização.
 
 ## Funcionalidades
 
@@ -10,6 +10,7 @@ Aplicativo Flutter local para controlar o estoque de uma Unidade de Alimentaçã
 - Painel com indicadores de estoque e inventário físico com ajuste pela contagem.
 - Relatórios de posição atual e movimentações, com exportação em CSV.
 - Exportação e restauração de backup do banco SQLite.
+- Compartilhamento nativo de relatórios e arquivos de backup gerados offline.
 - Preferência de tema do aplicativo e guia rápido de uso.
 
 As quantidades são armazenadas como inteiros em milésimos. Por exemplo, `1,5 kg` é guardado como `1500`.
