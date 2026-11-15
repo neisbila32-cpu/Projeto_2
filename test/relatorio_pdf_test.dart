@@ -73,6 +73,18 @@ void main() {
     },
   );
 
+  test('PDF de movimentações informa exatamente o período selecionado', () async {
+    final bytes = await RelatorioPdf.movimentacoes(
+      const [],
+      inicio: DateTime(2026, 10, 12),
+      fim: DateTime(2026, 10, 19),
+      geradoEm: DateTime(2026, 10, 20),
+    );
+    final texto = _extrairTextoPdf(bytes);
+
+    expect(texto, contains('Período:12/10/2026a19/10/2026'));
+  });
+
   test('compartilhador entrega arquivo PDF real para share_plus', () async {
     final bytes = await RelatorioPdf.estoque(const []);
     XFile? arquivoCompartilhado;

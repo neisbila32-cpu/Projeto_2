@@ -11,13 +11,12 @@ class TamanhoTextoApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tamanho =
-        ref.watch(tamanhoTextoProvider).value ?? TamanhoTexto.padrao;
+    final fator = ref.watch(tamanhoTextoProvider).value ?? TamanhoTexto.padrao.fator;
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TamanhoTextoScaler(
           MediaQuery.textScalerOf(context),
-          tamanho.fator,
+          fator,
         ),
       ),
       child: child,

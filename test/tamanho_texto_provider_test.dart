@@ -21,28 +21,38 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      expect(
-        await container.read(tamanhoTextoProvider.future),
-        TamanhoTexto.padrao,
-      );
-      for (final tamanho in TamanhoTexto.values) {
-        await container.read(tamanhoTextoProvider.notifier).definir(tamanho);
-        expect(await container.read(tamanhoTextoProvider.future), tamanho);
+      expect(await container.read(tamanhoTextoProvider.future), 1.0);
+      for (final fator in [0.8, 0.95, 1.15, 1.4, 1.6]) {
+        await container.read(tamanhoTextoProvider.notifier).definir(fator);
+        expect(await container.read(tamanhoTextoProvider.future), fator);
       }
 
       final reiniciado = ProviderContainer();
       addTearDown(reiniciado.dispose);
       expect(
         await reiniciado.read(tamanhoTextoProvider.future),
-        TamanhoTexto.extraGrande,
+        1.6,
       );
       final preferencias = await SharedPreferences.getInstance();
       expect(
-        preferencias.getString('tamanho_texto_aplicativo'),
-        'extra_grande',
+        preferencias.getDouble('tamanho_texto_aplicativo'),
+        1.6,
       );
     },
   );
+
+  test('migra preferência antiga de rótulo para fator contínuo', () async {
+    SharedPreferences.setMockInitialValues({
+      'tamanho_texto_aplicativo': 'extra_grande',
+    });
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(await container.read(tamanhoTextoProvider.future), 1.5);
+    await container.read(tamanhoTextoProvider.notifier).definir(1.35);
+    final preferencias = await SharedPreferences.getInstance();
+    expect(preferencias.getDouble('tamanho_texto_aplicativo'), 1.35);
+  });
 
   testWidgets('escalonamento é aplicado à árvore global e atualiza na hora', (
     tester,
@@ -82,7 +92,7 @@ void main() {
 
     await container
         .read(tamanhoTextoProvider.notifier)
-        .definir(TamanhoTexto.extraGrande);
+        .definir(1.5);
     await tester.pumpAndSettle();
     expect(escalaRecebida!.scale(14), 21);
     expect(find.text('Menu'), findsOneWidget);
@@ -90,7 +100,7 @@ void main() {
   });
 
   testWidgets(
-    'Perfil permite escolher tamanhos sem overflow em tela estreita',
+    'Perfil permite ajustar o slider sem overflow e salva a preferência',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       tester.view.physicalSize = const Size(360, 640);
@@ -121,14 +131,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Acessibilidade'), findsOneWidget);
-      for (final tamanho in TamanhoTexto.values) {
-        expect(find.text(tamanho.rotulo), findsOneWidget);
-      }
-      await tester.ensureVisible(find.text('Extra grande'));
+      expect(find.byType(Slider), findsOneWidget);
+      expect(find.text('Tamanho do texto em todo o aplicativo: 100%'), findsOneWidget);
+      await tester.ensureVisible(find.byType(Slider));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Extra grande'));
+      await tester.drag(find.byType(Slider), const Offset(100, 0));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      final preferencias = await SharedPreferences.getInstance();
+      expect(preferencias.getDouble('tamanho_texto_aplicativo'), greaterThan(1));
     },
   );
 }

@@ -21,21 +21,25 @@ enum TamanhoTexto {
   );
 }
 
-class TamanhoTextoController extends AsyncNotifier<TamanhoTexto> {
+class TamanhoTextoController extends AsyncNotifier<double> {
   static const String _chave = 'tamanho_texto_aplicativo';
 
   @override
-  Future<TamanhoTexto> build() async {
+  Future<double> build() async {
     final preferencias = await SharedPreferences.getInstance();
-    return TamanhoTexto.deValor(preferencias.getString(_chave));
+    final valor = preferencias.get(_chave);
+    if (valor is num) return valor.toDouble().clamp(0.8, 1.6).toDouble();
+    if (valor is String) return TamanhoTexto.deValor(valor).fator;
+    return TamanhoTexto.padrao.fator;
   }
 
-  Future<void> definir(TamanhoTexto tamanho) async {
-    final anterior = state.value ?? TamanhoTexto.padrao;
-    state = AsyncData(tamanho);
+  Future<void> definir(double fator) async {
+    final ajustado = fator.clamp(0.8, 1.6).toDouble();
+    final anterior = state.value ?? TamanhoTexto.padrao.fator;
+    state = AsyncData(ajustado);
     try {
       final preferencias = await SharedPreferences.getInstance();
-      final salvo = await preferencias.setString(_chave, tamanho.valorSalvo);
+      final salvo = await preferencias.setDouble(_chave, ajustado);
       if (!salvo) {
         throw StateError('Não foi possível salvar o tamanho do texto.');
       }
@@ -47,7 +51,7 @@ class TamanhoTextoController extends AsyncNotifier<TamanhoTexto> {
 }
 
 final tamanhoTextoProvider =
-    AsyncNotifierProvider<TamanhoTextoController, TamanhoTexto>(
+    AsyncNotifierProvider<TamanhoTextoController, double>(
       TamanhoTextoController.new,
     );
 

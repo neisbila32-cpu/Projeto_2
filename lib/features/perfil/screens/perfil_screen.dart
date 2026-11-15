@@ -5,14 +5,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:projeto_2/features/auth/providers/auth_providers.dart';
 import 'package:projeto_2/features/perfil/providers/tamanho_texto_provider.dart';
 
-class PerfilScreen extends ConsumerWidget {
+class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PerfilScreen> createState() => _PerfilScreenState();
+}
+
+class _PerfilScreenState extends ConsumerState<PerfilScreen> {
+  double? _fatorEmEdicao;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final usuarioAsync = ref.watch(sessionProvider);
-    final tamanhoTexto =
-        ref.watch(tamanhoTextoProvider).value ?? TamanhoTexto.padrao;
+    final fatorSalvo =
+        ref.watch(tamanhoTextoProvider).value ?? TamanhoTexto.padrao.fator;
+    final fatorTexto = _fatorEmEdicao ?? fatorSalvo;
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -102,38 +111,46 @@ class PerfilScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tamanho do texto em todo o aplicativo',
+                        'Tamanho do texto em todo o aplicativo: '
+                        '${(fatorTexto * 100).round()}%',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: TamanhoTexto.values.map((opcao) {
-                          return ChoiceChip(
-                            label: Text(
-                              opcao.rotulo,
-                              style: TextStyle(fontSize: 13 * opcao.fator),
-                            ),
-                            selected: tamanhoTexto == opcao,
-                            onSelected: (selecionado) {
-                              if (!selecionado) return;
-                              ref
-                                  .read(tamanhoTextoProvider.notifier)
-                                  .definir(opcao)
-                                  .catchError((_) {
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Não foi possível salvar o tamanho do texto.',
-                                        ),
-                                      ),
-                                    );
-                                  });
-                            },
-                          );
-                        }).toList(),
+                      Slider(
+                        min: 0.8,
+                        max: 1.6,
+                        divisions: 16,
+                        value: fatorTexto,
+                        label: '${(fatorTexto * 100).round()}%',
+                        semanticFormatterCallback: (valor) =>
+                            'Tamanho do texto: ${(valor * 100).round()} por cento',
+                        onChanged: (valor) =>
+                            setState(() => _fatorEmEdicao = valor),
+                        onChangeEnd: (valor) async {
+                          final mensageiro = ScaffoldMessenger.of(context);
+                          try {
+                            await ref
+                                .read(tamanhoTextoProvider.notifier)
+                                .definir(valor);
+                            if (mounted) {
+                              setState(() => _fatorEmEdicao = null);
+                            }
+                          } catch (_) {
+                            if (!mounted) return;
+                            setState(() => _fatorEmEdicao = null);
+                            mensageiro.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Não foi possível salvar o tamanho do texto.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [Text('Menor'), Text('Maior')],
                       ),
                     ],
                   ),

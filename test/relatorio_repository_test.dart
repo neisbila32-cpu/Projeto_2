@@ -98,6 +98,33 @@ void main() {
     expect(linhas.single.usuarioNome, 'Operador de teste');
   });
 
+  test('consulta intervalo livre com datas inclusivas nas extremidades', () async {
+    final produtoId = await criarProduto('Feijão de intervalo', 2000);
+    for (final data in [
+      DateTime(2026, 10, 12, 0, 0),
+      DateTime(2026, 10, 17, 13, 45),
+      DateTime(2026, 10, 19, 23, 59),
+      DateTime(2026, 10, 20, 0, 0),
+    ]) {
+      await db.insert('movimentacoes', {
+        'produto_id': produtoId,
+        'tipo': 'entrada',
+        'finalidade': null,
+        'delta': 100,
+        'saldo_apos': 100,
+        'data_hora': data.toIso8601String(),
+        'usuario_id': usuarioId,
+      });
+    }
+
+    final linhas = await repository.consultarMovimentacoes(
+      inicio: DateTime(2026, 10, 12),
+      fim: DateTime(2026, 10, 19),
+    );
+
+    expect(linhas.map((linha) => linha.dataHora.day), [19, 17, 12]);
+  });
+
   test('gera PDF da posição de estoque com os dados consultados', () async {
     await criarProduto('Arroz integral', 1500);
     final linhas = await repository.consultarEstoque();
