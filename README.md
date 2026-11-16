@@ -8,7 +8,7 @@ Aplicativo Flutter exclusivamente offline para controlar o estoque de uma Unidad
 - Catálogo inicial, cadastro de produtos, categorias e unidades.
 - Movimentações de entrada, saída, perda e ajuste, com histórico por responsável.
 - Painel com indicadores de estoque e inventário físico com ajuste pela contagem.
-- Relatórios de posição atual e movimentações, com exportação em CSV.
+- Relatórios de posição atual e movimentações, com exportação em CSV e PDF.
 - Exportação e restauração de backup do banco SQLite.
 - Compartilhamento nativo de relatórios e arquivos de backup gerados offline.
 - Preferência de tema do aplicativo e guia rápido de uso.
@@ -32,3 +32,7 @@ flutter test
 ```
 
 Os testes de banco usam SQLite em memória via `sqflite_common_ffi`.
+
+## Distribuição Android
+
+Consulte [`docs/distribuicao_android.md`](docs/distribuicao_android.md) para a identidade Android mantida, versionamento, assinatura release, proteção da chave e instalação de atualizações por APK. Nenhum APK é publicado automaticamente.
