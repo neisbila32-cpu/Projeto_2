@@ -39,7 +39,7 @@ if (
 }
 
 android {
-    namespace = "com.example.meu_app_android"
+    namespace = "com.github.neisbila32cpu.estoqueuan"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -49,8 +49,8 @@ android {
     }
 
     defaultConfig {
-        // Keep this package ID stable to preserve existing installations and their local data.
-        applicationId = "com.example.meu_app_android"
+        // Keep this distribution identity stable; changing it creates a separate app and database.
+        applicationId = "com.github.neisbila32cpu.estoqueuan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24

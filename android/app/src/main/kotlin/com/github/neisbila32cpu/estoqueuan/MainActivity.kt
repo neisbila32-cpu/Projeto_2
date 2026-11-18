@@ -1,4 +1,4 @@
-package com.example.meu_app_android
+package com.github.neisbila32cpu.estoqueuan
 
 import io.flutter.embedding.android.FlutterActivity
 
