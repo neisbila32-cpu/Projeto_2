@@ -36,3 +36,5 @@ Os testes de banco usam SQLite em memória via `sqflite_common_ffi`.
 ## Distribuição Android
 
 Consulte [`docs/distribuicao_android.md`](docs/distribuicao_android.md) para a identidade Android mantida, versionamento, assinatura release, proteção da chave e instalação de atualizações por APK. Nenhum APK é publicado automaticamente.
+
+O passo a passo para instalar e usar o aplicativo está em [`docs/guia_usuario_android.md`](docs/guia_usuario_android.md).
