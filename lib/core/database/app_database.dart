@@ -12,7 +12,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _dbName = 'estoque_uan.db';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
   static int get versaoAtual => _dbVersion;
 
@@ -239,6 +239,27 @@ class AppDatabase {
           break;
         case 4:
           await _migrarParaVersao4(db);
+          break;
+        case 5:
+          await db.execute(
+            'ALTER TABLE movimentacoes ADD COLUMN origem_id INTEGER REFERENCES movimentacoes(id)',
+          );
+          await db.execute(
+            'ALTER TABLE movimentacoes ADD COLUMN quantidade_anterior INTEGER',
+          );
+          await db.execute(
+            'ALTER TABLE movimentacoes ADD COLUMN quantidade_corrigida INTEGER',
+          );
+          await db.execute(
+            'CREATE INDEX idx_mov_origem ON movimentacoes(origem_id, id)',
+          );
+          await db.execute(
+            'ALTER TABLE inventarios ADD COLUMN finalizado_em TEXT',
+          );
+          // O encerramento dos inventários v4 ocorreu antes da migração.
+          await db.update('inventarios', {
+            'finalizado_em': DateTime.now().toIso8601String(),
+          }, where: "status = 'finalizado'");
           break;
         default:
           throw StateError('Migração SQLite não implementada: $versao.');

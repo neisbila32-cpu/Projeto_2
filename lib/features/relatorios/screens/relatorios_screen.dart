@@ -1,30 +1,58 @@
-import 'dart:typed_data';
+import 'menu_pdf.dart';
 
 import 'package:flutter/material.dart';
 import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/relatorios/models/relatorio_dados.dart';
 import 'package:projeto_2/features/relatorios/providers/relatorio_providers.dart';
-import 'package:projeto_2/features/relatorios/services/relatorio_compartilhamento.dart';
 import 'package:projeto_2/features/relatorios/services/relatorio_pdf.dart';
 
 enum _ModoPeriodoRelatorio { dia, intervalo }
 
-class RelatoriosScreen extends ConsumerStatefulWidget {
+class RelatoriosScreen extends StatelessWidget {
   const RelatoriosScreen({super.key});
-
   @override
-  ConsumerState<RelatoriosScreen> createState() => _RelatoriosScreenState();
+  Widget build(BuildContext context) => Scaffold(
+    drawer: const AppDrawer(),
+    appBar: AppBar(
+      leading: drawerMenuButton(context),
+      title: const Text('Relatórios'),
+    ),
+    body: ListView(
+      children: [
+        for (final estoque in [true, false])
+          ListTile(
+            leading: Icon(
+              estoque ? Icons.inventory_2_outlined : Icons.swap_vert,
+            ),
+            title: Text(estoque ? 'Posição atual do estoque' : 'Movimentações'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => _DetalheRelatorio(estoque: estoque),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
-class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
+class _DetalheRelatorio extends ConsumerStatefulWidget {
+  const _DetalheRelatorio({required this.estoque});
+  final bool estoque;
+
+  @override
+  ConsumerState<_DetalheRelatorio> createState() => _RelatoriosScreenState();
+}
+
+class _RelatoriosScreenState extends ConsumerState<_DetalheRelatorio> {
   late DateTime _inicio;
   late DateTime _fim;
   _ModoPeriodoRelatorio _modoPeriodo = _ModoPeriodoRelatorio.intervalo;
-  bool _exportando = false;
 
   @override
   void initState() {
@@ -79,34 +107,6 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
     });
   }
 
-  Future<void> _compartilharPdf(
-    String nome,
-    Future<Uint8List> Function() gerar,
-  ) async {
-    setState(() => _exportando = true);
-    try {
-      final conteudo = await gerar();
-      final resultado = await RelatorioCompartilhamento().compartilharPdf(
-        conteudo: conteudo,
-        nome: nome,
-      );
-      if (resultado.status == ShareResultStatus.unavailable && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('O compartilhamento não está disponível.'),
-          ),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível exportar o relatório.')),
-      );
-    } finally {
-      if (mounted) setState(() => _exportando = false);
-    }
-  }
-
   Widget _estado<T>(AsyncValue<T> valor, Widget Function(T dados) conteudo) {
     return valor.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -147,21 +147,17 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Exportar estoque em PDF',
-                  onPressed: _exportando
-                      ? null
-                      : () async {
-                          final geradoEm = DateTime.now();
-                          await _compartilharPdf(
-                            'relatorio_estoque_gerado_${_carimbo(geradoEm)}.pdf',
-                            () => RelatorioPdf.estoque(
-                              linhas,
-                              geradoEm: geradoEm,
-                            ),
-                          );
-                        },
-                  icon: const Icon(Icons.file_download_outlined),
+                MenuPdf(
+                  gerar: () async {
+                    final agora = DateTime.now();
+                    return (
+                      nome: 'relatorio_estoque_gerado_${_carimbo(agora)}.pdf',
+                      bytes: await RelatorioPdf.estoque(
+                        linhas,
+                        geradoEm: agora,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -207,25 +203,22 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Exportar movimentações em PDF',
-                  onPressed: linhas.isEmpty || _exportando
+                MenuPdf(
+                  gerar: linhas.isEmpty
                       ? null
                       : () async {
-                          final geradoEm = DateTime.now();
-                          await _compartilharPdf(
-                            'relatorio_movimentacoes_'
-                            '${_carimbo(_inicio)}_a_${_carimbo(_fim)}_'
-                            'gerado_${_carimbo(geradoEm)}.pdf',
-                            () => RelatorioPdf.movimentacoes(
+                          final agora = DateTime.now();
+                          return (
+                            nome:
+                                'relatorio_movimentacoes_${_carimbo(_inicio)}_a_${_carimbo(_fim)}_gerado_${_carimbo(agora)}.pdf',
+                            bytes: await RelatorioPdf.movimentacoes(
                               linhas,
                               inicio: _inicio,
                               fim: _fim,
-                              geradoEm: geradoEm,
+                              geradoEm: agora,
                             ),
                           );
                         },
-                  icon: const Icon(Icons.file_download_outlined),
                 ),
               ],
             ),
@@ -258,16 +251,13 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final estoque = ref.watch(estoqueRelatorioProvider);
     final periodo = (inicio: _inicio, fim: _fim);
-    final movimentacoes = ref.watch(movimentacoesRelatorioProvider(periodo));
 
     return Scaffold(
-      drawer: const AppDrawer(),
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        leading: drawerMenuButton(context),
-        title: const Text('Relatórios'),
+        title: Text(
+          widget.estoque ? 'Posição atual do estoque' : 'Movimentações',
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -278,52 +268,57 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.date_range),
-                title: Text(
-                  _modoPeriodo == _ModoPeriodoRelatorio.dia
-                      ? 'Dia das movimentações'
-                      : 'Intervalo das movimentações',
+            if (widget.estoque)
+              _estado(ref.watch(estoqueRelatorioProvider), _cartaoEstoque)
+            else ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.date_range),
+                  title: Text(
+                    _modoPeriodo == _ModoPeriodoRelatorio.dia
+                        ? 'Dia das movimentações'
+                        : 'Intervalo das movimentações',
+                  ),
+                  subtitle: Text(
+                    _modoPeriodo == _ModoPeriodoRelatorio.dia
+                        ? 'Dia selecionado: ${_data(_inicio)}'
+                        : 'Período selecionado: ${_data(_inicio)} a ${_data(_fim)}',
+                  ),
+                  trailing: const Icon(Icons.edit_calendar_outlined),
+                  onTap: _modoPeriodo == _ModoPeriodoRelatorio.dia
+                      ? _selecionarDia
+                      : _selecionarIntervalo,
                 ),
-                subtitle: Text(
-                  _modoPeriodo == _ModoPeriodoRelatorio.dia
-                      ? 'Dia selecionado: ${_data(_inicio)}'
-                      : 'Período selecionado: ${_data(_inicio)} a ${_data(_fim)}',
-                ),
-                trailing: const Icon(Icons.edit_calendar_outlined),
-                onTap: _modoPeriodo == _ModoPeriodoRelatorio.dia
-                    ? _selecionarDia
-                    : _selecionarIntervalo,
               ),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<_ModoPeriodoRelatorio>(
-              segments: const [
-                ButtonSegment(
-                  value: _ModoPeriodoRelatorio.dia,
-                  label: Text('Um dia'),
-                  icon: Icon(Icons.today_outlined),
-                ),
-                ButtonSegment(
-                  value: _ModoPeriodoRelatorio.intervalo,
-                  label: Text('Intervalo'),
-                  icon: Icon(Icons.date_range_outlined),
-                ),
-              ],
-              selected: {_modoPeriodo},
-              onSelectionChanged: (selecionado) {
-                final modo = selecionado.first;
-                setState(() {
-                  _modoPeriodo = modo;
-                  if (modo == _ModoPeriodoRelatorio.dia) _fim = _inicio;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            _estado(estoque, _cartaoEstoque),
-            const SizedBox(height: 8),
-            _estado(movimentacoes, _cartaoMovimentacoes),
+              const SizedBox(height: 8),
+              SegmentedButton<_ModoPeriodoRelatorio>(
+                segments: const [
+                  ButtonSegment(
+                    value: _ModoPeriodoRelatorio.dia,
+                    label: Text('Um dia'),
+                    icon: Icon(Icons.today_outlined),
+                  ),
+                  ButtonSegment(
+                    value: _ModoPeriodoRelatorio.intervalo,
+                    label: Text('Intervalo'),
+                    icon: Icon(Icons.date_range_outlined),
+                  ),
+                ],
+                selected: {_modoPeriodo},
+                onSelectionChanged: (selecionado) {
+                  final modo = selecionado.first;
+                  setState(() {
+                    _modoPeriodo = modo;
+                    if (modo == _ModoPeriodoRelatorio.dia) _fim = _inicio;
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              _estado(
+                ref.watch(movimentacoesRelatorioProvider(periodo)),
+                _cartaoMovimentacoes,
+              ),
+            ],
           ],
         ),
       ),

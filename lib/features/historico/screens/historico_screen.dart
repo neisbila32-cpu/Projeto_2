@@ -12,6 +12,11 @@ import 'package:projeto_2/features/produtos/models/produto.dart';
 import 'package:projeto_2/features/produtos/providers/produto_providers.dart';
 import 'package:projeto_2/features/produtos/widgets/produtos_lista_view.dart';
 
+import 'package:projeto_2/features/auth/providers/auth_providers.dart';
+import 'package:projeto_2/features/movimentacoes/providers/movimentacao_providers.dart';
+import 'package:projeto_2/features/relatorios/providers/relatorio_providers.dart';
+import 'package:projeto_2/features/painel/providers/painel_providers.dart';
+
 /// Tela de histórico de movimentações de estoque.
 class HistoricoScreen extends ConsumerWidget {
   const HistoricoScreen({super.key});
@@ -370,7 +375,7 @@ class _HistoricoLista extends ConsumerWidget {
                   ),
                 ),
               ),
-            _historicoItem(item),
+            _historicoItem(context, ref, item),
           ],
         );
       },
@@ -379,7 +384,7 @@ class _HistoricoLista extends ConsumerWidget {
 }
 
 /// Um item da lista de histórico.
-Widget _historicoItem(HistoricoItem item) {
+Widget _historicoItem(BuildContext context, WidgetRef ref, HistoricoItem item) {
   final m = item.movimentacao;
   final cor = m.delta > 0 ? Colors.green : Colors.red;
   final sinal = m.delta > 0 ? '+' : '-';
@@ -391,7 +396,34 @@ Widget _historicoItem(HistoricoItem item) {
       m.tipo.rotulo +
       (m.finalidade != null ? ' · ${m.finalidade!.rotulo}' : '');
 
+  final usuario = ref.watch(sessionProvider).value;
+  final editavel =
+      usuario != null &&
+      (usuario.isAdmin || usuario.id == m.usuarioId) &&
+      (m.tipo == TipoMovimentacao.entrada || m.tipo == TipoMovimentacao.saida);
+  Future<void> abrirMenu() async {
+    final editar = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.edit_outlined),
+          title: const Text('Editar movimentação'),
+          onTap: () => Navigator.pop(sheet, true),
+        ),
+      ),
+    );
+    if (editar == true && context.mounted) await _editar(context, ref, item);
+  }
+
   return ListTile(
+    onLongPress: editavel ? abrirMenu : null,
+    trailing: editavel
+        ? IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Opções da movimentação',
+            onPressed: abrirMenu,
+          )
+        : null,
     title: Text(
       item.produtoNome,
       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -418,6 +450,115 @@ Widget _historicoItem(HistoricoItem item) {
       ],
     ),
   );
+}
+
+Future<void> _editar(
+  BuildContext context,
+  WidgetRef ref,
+  HistoricoItem item,
+) async {
+  final repo = ref.read(movimentacaoRepositoryProvider);
+  final usuario = ref.read(sessionProvider).value;
+  if (usuario == null) return;
+  final m = item.movimentacao;
+  String format(int valor) =>
+      QuantidadeUtils.format(valor, fracionavel: item.fracionavel);
+  try {
+    final anterior = await repo.quantidadeEfetiva(m.id);
+    if (!context.mounted) return;
+    var texto = format(anterior);
+    final nova = await showDialog<int>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (ctx, atualizar) {
+          final valor = QuantidadeUtils.parse(
+            texto,
+            fracionavel: item.fracionavel,
+          );
+          return AlertDialog(
+            title: const Text('Editar movimentação'),
+            content: TextFormField(
+              initialValue: format(anterior),
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Nova quantidade (${item.unidadeSigla})',
+              ),
+              onChanged: (v) => atualizar(() => texto = v),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: valor == null || valor <= 0 || valor == anterior
+                    ? null
+                    : () => Navigator.pop(ctx, valor),
+                child: const Text('Revisar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (nova == null || !context.mounted) return;
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar correção?'),
+        content: Text(
+          '${item.produtoNome}: ${format(anterior)} → ${format(nova)} ${item.unidadeSigla}. A diferença será registrada como ajuste.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true ||
+        !context.mounted ||
+        ref.read(sessionProvider).value?.id != usuario.id) {
+      return;
+    }
+    await repo.retificar(
+      id: m.id,
+      usuarioId: usuario.id,
+      anterior: anterior,
+      nova: nova,
+    );
+    if (!context.mounted) return;
+    ref.invalidate(produtosProvider);
+    ref.invalidate(produtoPorIdProvider(m.produtoId));
+    ref.invalidate(ultimasMovimentacoesProvider(m.produtoId));
+    ref.invalidate(painelProvider);
+    ref.invalidate(estoqueRelatorioProvider);
+    ref.invalidate(movimentacoesRelatorioProvider);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Correção registrada.')));
+    ref.invalidate(historicoProvider);
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is AppException
+                ? e.message
+                : 'Não foi possível corrigir a movimentação.',
+          ),
+        ),
+      );
+    }
+  }
 }
 
 String _ddMmAaa(DateTime d) =>

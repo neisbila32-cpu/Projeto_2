@@ -314,7 +314,10 @@ class InventarioRepository {
 
       await txn.update(
         'inventarios',
-        {'status': 'finalizado'},
+        {
+          'status': 'finalizado',
+          'finalizado_em': DateTime.now().toIso8601String(),
+        },
         where: 'id = ? AND contexto_id = ?',
         whereArgs: [inventarioId, contextoId],
       );

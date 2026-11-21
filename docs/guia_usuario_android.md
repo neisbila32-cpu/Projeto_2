@@ -18,6 +18,16 @@
 
 Login, produtos, categorias, movimentações, inventários, histórico, painel e relatórios funcionam localmente no aparelho. O aplicativo não sincroniza automaticamente com outros celulares. Cada aparelho tem seu próprio SQLite e seu próprio conjunto de registros. Compartilhar um arquivo pelo menu do Android envia uma cópia do arquivo; isso não sincroniza os dados.
 
+## Corrigir uma quantidade
+
+Em **Histórico de movimentações**, segure uma entrada ou saída ou toque nos três pontos ao lado dela. Escolha **Editar movimentação**, informe a quantidade correta e toque em **Revisar**. Confira os dois valores e confirme. O histórico mantém o lançamento original e acrescenta um ajuste com a diferença, o responsável e o horário. Operadores corrigem seus próprios lançamentos e administradores podem corrigir os de outros usuários.
+
+Se o produto já passou por uma contagem ou ajuste incompatível, o aplicativo explica o bloqueio. Uma contagem antiga cujo encerramento não foi registrado no banco anterior também pode bloquear a correção.
+
+## Consultar e exportar relatórios
+
+Em **Relatórios**, escolha **Posição atual do estoque** ou **Movimentações**. Para movimentações, selecione um dia ou intervalo. O menu de três pontos do relatório e o do **Painel** permitem compartilhar o PDF ou escolher onde salvá-lo no Android.
+
 ## Criar e guardar backup
 
 1. Entre como administrador e abra o menu lateral **Backup e restauração**.

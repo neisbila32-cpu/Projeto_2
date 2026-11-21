@@ -7,7 +7,7 @@ Este projeto prepara APKs para distribuição controlada. Não publica automatic
 - Nome exibido: **Estoque UAN**. O ícone existente foi preservado.
 - `applicationId` e `namespace` de distribuição: `com.github.neisbila32cpu.estoqueuan`. O identificador usa a conta proprietária do repositório como raiz e deve permanecer estável depois da primeira distribuição.
 - Android mínimo: API 24 (Android 7.0); `targetSdk` acompanha o Flutter SDK configurado.
-- SQLite permanece na versão 4. Login, cadastro e recuperação são locais; não há sincronização nem dependência de Supabase.
+- SQLite v5 migra o banco v4 no primeiro acesso e preserva os lançamentos. Login, cadastro e recuperação são locais; não há sincronização nem dependência de Supabase.
 - `INTERNET` é concedida apenas nos manifests `debug` e `profile`, para ferramentas de desenvolvimento. O APK release não declara essa permissão.
 - Versão Flutter: `MAJOR.MINOR.PATCH+BUILD`; `BUILD` vira `versionCode` Android e deve aumentar em cada atualização. `versionName` é a versão exibida pelo Android.
 
@@ -29,4 +29,4 @@ O APK debug e o release não podem substituir um ao outro se os certificados for
 
 ## Verificações desta etapa
 
-Os testes automatizados validam login local, operações de estoque, SQLite v4, backup/restauração, relatórios e compartilhamento de arquivos. Eles não substituem a instalação limpa e a validação offline em aparelho Android de teste. Nenhum aparelho deve ser desinstalado, limpo ou atualizado sem backup validado.
+Os testes automatizados validam login local, operações de estoque, migração SQLite e auditoria de retificações, backup/restauração, relatórios e compartilhamento de arquivos. Eles não substituem a instalação limpa e a validação offline em aparelho Android de teste. Nenhum aparelho deve ser desinstalado, limpo ou atualizado sem backup validado.

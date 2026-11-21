@@ -2,7 +2,7 @@
 # See https://dart.dev/tools/pub/glossary#lockfile
 packages:
   android_file_picker:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: android_file_picker
       sha256: "03d3dd3cb578ab26b1e528aeea27bf6b976942f5a24e3da82d270369b8e161a8"
