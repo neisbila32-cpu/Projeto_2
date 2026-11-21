@@ -197,7 +197,7 @@ void main() {
         arquivo.path,
         options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
       );
-      expect(await backup.getVersion(), 4);
+      expect(await backup.getVersion(), AppDatabase.versaoAtual);
       expect((await backup.query('contextos_trabalho')), hasLength(1));
       expect((await backup.query('produtos')), hasLength(1));
       expect((await backup.query('produtos')).single['saldo'], 12345);
@@ -345,7 +345,7 @@ void main() {
 
       await servico().restaurar(File(caminho));
 
-      expect(await db.getVersion(), 4);
+      expect(await db.getVersion(), AppDatabase.versaoAtual);
       expect(
         (await db.query('produtos', where: 'id = 700')).single['saldo'],
         45678,

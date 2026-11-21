@@ -7,7 +7,7 @@ import 'package:projeto_2/core/utils/quantidade_utils.dart';
 import 'package:projeto_2/features/painel/models/painel_dados.dart';
 import 'package:projeto_2/features/painel/providers/painel_providers.dart';
 import 'package:projeto_2/features/painel/services/painel_pdf.dart';
-import 'package:projeto_2/features/relatorios/services/relatorio_compartilhamento.dart';
+import 'package:projeto_2/features/relatorios/screens/menu_pdf.dart';
 
 /// Tela do painel com resumo, ranking de saídas e movimentação por dia.
 class PainelScreen extends ConsumerStatefulWidget {
@@ -20,7 +20,6 @@ class PainelScreen extends ConsumerStatefulWidget {
 class _PainelScreenState extends ConsumerState<PainelScreen> {
   /// Modo do ranking: false = gêneros, true = produtos.
   bool _rankingProdutos = false;
-  bool _exportando = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,19 +32,7 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
         automaticallyImplyLeading: false,
         leading: drawerMenuButton(context),
         title: const Text('Painel'),
-        actions: [
-          IconButton(
-            tooltip: 'Compartilhar gráficos em PDF',
-            onPressed: _exportando ? null : _exportarPdf,
-            icon: _exportando
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.picture_as_pdf_outlined),
-          ),
-        ],
+        actions: [MenuPdf(gerar: _exportarPdf)],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -64,11 +51,8 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
                   return ChoiceChip(
                     label: Text(a.rotulo),
                     selected: a == atalho,
-                    onSelected: _exportando
-                        ? null
-                        : (_) => ref
-                              .read(painelAtalhoProvider.notifier)
-                              .definir(a),
+                    onSelected: (_) =>
+                        ref.read(painelAtalhoProvider.notifier).definir(a),
                   );
                 }).toList(),
               ),
@@ -103,47 +87,24 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
     );
   }
 
-  Future<void> _exportarPdf() async {
-    setState(() => _exportando = true);
-    try {
-      final atalho = ref.read(painelAtalhoProvider);
-      final dados = await ref.read(painelProvider.future);
-      final agora = DateTime.now();
-      final bytes = await PainelPdf.gerar(
-        dados,
-        atalho: atalho,
-        rankingProdutos: _rankingProdutos,
-        geradoEm: agora,
-      );
-      final data = '${agora.year}${_dois(agora.month)}${_dois(agora.day)}';
-      final horario = '${_dois(agora.hour)}${_dois(agora.minute)}';
-      final nomePeriodo = switch (atalho) {
-        PainelAtalho.seteDias => '7_dias',
-        PainelAtalho.trintaDias => '30_dias',
-        PainelAtalho.esteMes => 'este_mes',
-      };
-      final resultado = await RelatorioCompartilhamento().compartilharPdf(
-        conteudo: bytes,
-        nome: 'painel_${nomePeriodo}_${data}_$horario.pdf',
-      );
-      if (mounted && resultado.status.name == 'unavailable') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível abrir o compartilhamento.'),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível gerar o PDF do Painel.'),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exportando = false);
-    }
+  Future<DocumentoPdf> _exportarPdf() async {
+    final atalho = ref.read(painelAtalhoProvider);
+    final dados = await ref.read(painelProvider.future);
+    final agora = DateTime.now();
+    final bytes = await PainelPdf.gerar(
+      dados,
+      atalho: atalho,
+      rankingProdutos: _rankingProdutos,
+      geradoEm: agora,
+    );
+    final data = '${agora.year}${_dois(agora.month)}${_dois(agora.day)}';
+    final horario = '${_dois(agora.hour)}${_dois(agora.minute)}';
+    final nomePeriodo = switch (atalho) {
+      PainelAtalho.seteDias => '7_dias',
+      PainelAtalho.trintaDias => '30_dias',
+      PainelAtalho.esteMes => 'este_mes',
+    };
+    return (nome: 'painel_${nomePeriodo}_${data}_$horario.pdf', bytes: bytes);
   }
 
   Widget _conteudo(ColorScheme colorScheme, PainelDados dados) {
@@ -343,14 +304,14 @@ class _PainelScreenState extends ConsumerState<PainelScreen> {
             !_rankingProdutos,
             colorScheme,
             sombra,
-            _exportando ? null : () => setState(() => _rankingProdutos = false),
+            () => setState(() => _rankingProdutos = false),
           ),
           _opcaoModo(
             'Produtos',
             _rankingProdutos,
             colorScheme,
             sombra,
-            _exportando ? null : () => setState(() => _rankingProdutos = true),
+            () => setState(() => _rankingProdutos = true),
           ),
         ],
       ),

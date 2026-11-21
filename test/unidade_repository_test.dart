@@ -30,7 +30,10 @@ void main() {
       await db.query('unidades', where: 'id = ?', whereArgs: [id]),
       isEmpty,
     );
-    expect(Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')), 4);
+    expect(
+      Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')),
+      AppDatabase.versaoAtual,
+    );
   });
 
   test('bloqueia exclusão de unidade usada e orienta manter inativa', () async {

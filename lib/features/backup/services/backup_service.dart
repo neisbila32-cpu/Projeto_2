@@ -89,7 +89,7 @@ class BackupService {
     await File(await _caminhoBanco()).copy(destino);
   }
 
-  /// Gera um banco SQLite v4 contendo exclusivamente o contexto individual.
+  /// Gera um banco SQLite no esquema atual contendo exclusivamente o contexto individual.
   Future<File> exportar() async {
     final destino = File(_caminhoTemporario('backup_estoque_uan'));
     Database? exportado;
@@ -97,7 +97,7 @@ class BackupService {
     File? arquivoMigrado;
     try {
       var origem = await _obterBanco();
-      // O app abre em v4; este caminho também mantém compatíveis os bancos v1
+      // O app abre no esquema atual; este caminho também mantém compatíveis os bancos v1
       // fornecidos por integrações/testes antigos, sempre migrando uma cópia.
       if (await origem.getVersion() < 2) {
         arquivoMigrado = File(_caminhoTemporario('backup_origem_migrada'));
@@ -119,7 +119,7 @@ class BackupService {
         contextoEsperado: contextoId,
       );
 
-      exportado = await _abrirBancoV4(destino.path);
+      exportado = await _abrirBancoAtual(destino.path);
       await _copiarContexto(origem, exportado, contextoId);
       final integridade = await _verificarIntegridade(exportado);
       if (integridade != null) {
@@ -211,7 +211,7 @@ class BackupService {
       original = null;
 
       await arquivo.copy(temporario.path);
-      migrado = await _abrirBancoV4(temporario.path);
+      migrado = await _abrirBancoAtual(temporario.path);
       final integridadeMigrada = await _verificarIntegridade(migrado);
       final fkMigrado = await migrado.rawQuery('PRAGMA foreign_key_check');
       if (integridadeMigrada != null || fkMigrado.isNotEmpty) {
@@ -238,7 +238,7 @@ class BackupService {
     }
   }
 
-  Future<Database> _abrirBancoV4(String caminho) => openDatabase(
+  Future<Database> _abrirBancoAtual(String caminho) => openDatabase(
     caminho,
     version: AppDatabase.versaoAtual,
     onConfigure: AppDatabase.prepararBancoParaMigracao,
@@ -288,6 +288,7 @@ class BackupService {
             tabela,
             where: 'contexto_id = ?',
             whereArgs: [contextoId],
+            orderBy: 'id',
           );
           for (final linha in linhas) {
             await transacao.insert(tabela, linha);
@@ -385,6 +386,7 @@ class BackupService {
               tabela,
               where: 'contexto_id = ?',
               whereArgs: [contextoBackup],
+              orderBy: 'id',
             );
             for (final linhaBackup in linhas) {
               final linha = Map<String, Object?>.from(linhaBackup)

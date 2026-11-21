@@ -298,7 +298,7 @@ void main() {
         onOpen: AppDatabase.configurarBanco,
       ),
     );
-    expect(await dbV4.getVersion(), 4);
+    expect(await dbV4.getVersion(), AppDatabase.versaoAtual);
     expect(
       (await dbV4.query(
         'produtos',
