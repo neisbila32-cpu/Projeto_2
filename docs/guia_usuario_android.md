@@ -2,7 +2,7 @@
 
 ## Receber e instalar
 
-1. Receba o APK e a versão por um canal indicado pelo responsável pelo Estoque UAN. Instale somente um arquivo cuja origem e SHA-256 tenham sido conferidos.
+1. Receba o arquivo **Estoque-UAN-v1.1.2.apk** por um canal indicado pelo responsável pelo Estoque UAN. O aparelho precisa ter Android 7.0 ou superior. Confira a origem e compare o SHA-256 do arquivo com o que consta no [relatório de encerramento](encerramento.md).
 2. No Android, abra o APK em **Arquivos** ou **Downloads** e toque em **Instalar**.
 3. Se o Android pedir autorização, abra **Configurações** a partir do aviso e permita temporariamente **Instalar apps desconhecidos** para o aplicativo que abriu o APK (por exemplo, Arquivos). Volte e conclua a instalação. Desative a permissão depois, se não precisar mais dela.
 4. Abra **Estoque UAN**.
@@ -13,6 +13,12 @@
 2. Informe nome, login e senha e confirme o cadastro.
 3. Se aparecer um código de recuperação, anote-o e guarde-o em local seguro. Ele é mostrado uma única vez.
 4. Entre com o login e a senha criados. Cadastre produtos, categorias e unidades ou importe o catálogo inicial.
+
+## Registrar e conferir o estoque
+
+1. Cadastre a categoria e a unidade de medida. Depois, em **Produtos**, toque em **Novo produto** e selecione a categoria e a unidade.
+2. Abra o produto e registre as entradas e saídas em **Movimentar estoque**. Confira o saldo e use o **Histórico** para consultar os lançamentos.
+3. Em **Inventário físico**, registre a quantidade contada. Antes de finalizar, confira as divergências e os ajustes que serão aplicados.
 
 ## Usar sem internet
 
@@ -42,6 +48,13 @@ Para restaurar, escolha **Restaurar**, selecione um backup válido e confira o a
 Antes de instalar uma versão nova, confira a versão e faça um backup. A atualização oficial deve vir do mesmo responsável, manter o mesmo identificador e certificado de assinatura, e apresentar um número de build maior. Abra o novo APK e escolha **Atualizar/Instalar** sem limpar os dados.
 
 Instalações antigas de desenvolvimento podem ter outro identificador ou certificado e não aceitar o APK release como atualização. Não desinstale nem limpe dados para contornar esse aviso: faça primeiro backup e peça orientação para a migração.
+
+## Recuperar os dados em outro celular
+
+1. Localize o backup mais recente guardado fora do aparelho antigo. Confira a data do arquivo e mantenha uma cópia intacta em local seguro.
+2. Instale o Estoque UAN em um aparelho compatível. Em uma instalação vazia, crie um administrador temporário para abrir **Backup e restauração**.
+3. Se o aparelho de destino já tiver dados, exporte primeiro o backup desse aparelho. Depois selecione o arquivo do aparelho antigo e confirme a restauração somente no destino correto.
+4. Entre com uma conta que existia no backup e confira produtos, saldos e as últimas movimentações. O backup reflete a data da exportação. Sem uma cópia legível fora do celular perdido, os dados locais não podem ser recuperados pelo aplicativo.
 
 ## Conferir a versão
 

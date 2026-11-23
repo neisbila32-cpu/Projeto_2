@@ -2,6 +2,8 @@
 
 Este projeto prepara APKs para distribuição controlada. Não publica automaticamente na Play Store nem envia APKs a usuários.
 
+A versão final estável é **1.1.2 (versionCode 5)**. O [relatório de encerramento](encerramento.md) registra o APK assinado, o SHA-256 e a pendência para liberação da distribuição.
+
 ## Identidade e compatibilidade
 
 - Nome exibido: **Estoque UAN**. O ícone existente foi preservado.
@@ -17,7 +19,7 @@ O identificador anterior de desenvolvimento era `com.example.meu_app_android`. A
 
 O keystore release fica fora do repositório e as credenciais não são versionadas. A configuração de build aceita `android/key.properties` local ignorado pelo Git ou variáveis de ambiente no processo de build. Não grave senhas em código, workflows, logs, tickets, PRs ou arquivos compartilhados.
 
-Mantenha duas cópias criptografadas e independentes do keystore em mídias externas controladas. Verifique que cada cópia pode ser lida e que seu hash corresponde ao original. Guarde as senhas num gerenciador de senhas separado dos arquivos. Não distribua a primeira versão até concluir essas cópias: sem o certificado original não é possível assinar atualizações reconhecidas como a mesma instalação.
+Mantenha duas cópias criptografadas e independentes do keystore em mídias externas controladas. Verifique que cada cópia pode ser lida e que seu hash corresponde ao original. Guarde as senhas num gerenciador de senhas separado dos arquivos. A verificação da segunda cópia independente permanece pendente e a distribuição irrestrita aguarda essa conferência. A chave original é necessária para assinar futuras atualizações reconhecidas pelo Android como a mesma instalação.
 
 Para confirmar que os arquivos locais de configuração continuam ignorados, use `git check-ignore` para `android/key.properties` e o keystore. Nunca envie esses arquivos ao GitHub.
 
