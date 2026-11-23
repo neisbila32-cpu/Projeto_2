@@ -34,6 +34,7 @@ void main() {
       expect(conteudo, contains('/Title'));
       expect(texto, contains('Arrozintegral'));
       expect(texto, contains('1,5kg'));
+      expect(texto, isNot(contains('Observação')));
     },
   );
 
@@ -48,8 +49,8 @@ void main() {
             produtoNome: 'Produto ${i + 1}',
             unidadeSigla: 'kg',
             fracionavel: true,
-            tipo: 'Entrada',
-            delta: 500,
+            tipo: i.isEven ? 'Entrada' : 'Saída',
+            delta: i.isEven ? 500 : -500,
             saldoApos: 1000 + i * 500,
             usuarioNome: 'Operador',
             observacao: 'Reposição de teste',
@@ -69,21 +70,36 @@ void main() {
       expect(conteudo, startsWith('%PDF-'));
       expect(texto, contains('Produto140'));
       expect(texto, contains('01/11/2026'));
+      expect(
+        texto,
+        contains('DataehoraProdutoTipoVariaçãoSaldoapósResponsável'),
+      );
+      expect(texto, contains('Entrada'));
+      expect(texto, contains('Saída'));
+      expect(texto, contains('+0,5kg'));
+      expect(texto, contains('-0,5kg'));
+      expect(texto, contains('70,5kg'));
+      expect(texto, contains('Operador'));
+      expect(texto, isNot(contains('Observação')));
+      expect(texto, isNot(contains('Reposiçãodeteste')));
       expect(paginas, greaterThan(1));
     },
   );
 
-  test('PDF de movimentações informa exatamente o período selecionado', () async {
-    final bytes = await RelatorioPdf.movimentacoes(
-      const [],
-      inicio: DateTime(2026, 10, 12),
-      fim: DateTime(2026, 10, 19),
-      geradoEm: DateTime(2026, 10, 20),
-    );
-    final texto = _extrairTextoPdf(bytes);
+  test(
+    'PDF de movimentações informa exatamente o período selecionado',
+    () async {
+      final bytes = await RelatorioPdf.movimentacoes(
+        const [],
+        inicio: DateTime(2026, 10, 12),
+        fim: DateTime(2026, 10, 19),
+        geradoEm: DateTime(2026, 10, 20),
+      );
+      final texto = _extrairTextoPdf(bytes);
 
-    expect(texto, contains('Período:12/10/2026a19/10/2026'));
-  });
+      expect(texto, contains('Período:12/10/2026a19/10/2026'));
+    },
+  );
 
   test('compartilhador entrega arquivo PDF real para share_plus', () async {
     final bytes = await RelatorioPdf.estoque(const []);
