@@ -2,7 +2,7 @@
 
 Este projeto prepara APKs para distribuição controlada. Não publica automaticamente na Play Store nem envia APKs a usuários.
 
-A versão final estável é **1.1.2 (versionCode 5)**. O [relatório de encerramento](encerramento.md) registra o APK assinado, o SHA-256 e a pendência para liberação da distribuição.
+A versão final é **1.1.3 (versionCode 6)**, com os créditos de autoria. O [relatório de encerramento](encerramento.md) registra o APK assinado, o SHA-256 e a pendência para liberação da distribuição.
 
 ## Identidade e compatibilidade
 
