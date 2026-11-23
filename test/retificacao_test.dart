@@ -78,6 +78,10 @@ void main() {
     () async {
       final originais = await db.query('movimentacoes', orderBy: 'id');
       final admin = await usuario('gestor', 'admin');
+      expect(await repo.retificaveisDoProduto(produto, admin), {
+        entrada,
+        saida,
+      });
       await repo.retificar(
         id: entrada,
         usuarioId: autor,
@@ -116,6 +120,7 @@ void main() {
     'rejeita saldo negativo, fração, valor obsoleto e operador de outro registro',
     () async {
       final outro = await usuario('outro', 'operador');
+      expect(await repo.retificaveisDoProduto(produto, outro), isEmpty);
       for (final (id, antes, depois, ator) in [
         (saida, 3000, 12000, autor),
         (entrada, 10000, 2500, autor),
@@ -151,6 +156,7 @@ void main() {
         'qtd_contada': 7000,
         'divergencia': 0,
       });
+      expect(await repo.retificaveisDoProduto(produto, autor), isEmpty);
       for (final status in ['em_andamento', 'finalizado']) {
         await db.update('inventarios', {
           'status': status,

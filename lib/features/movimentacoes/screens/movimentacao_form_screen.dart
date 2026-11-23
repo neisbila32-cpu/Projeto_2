@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +9,8 @@ import 'package:projeto_2/features/movimentacoes/models/movimentacao.dart';
 import 'package:projeto_2/features/historico/providers/historico_providers.dart';
 import 'package:projeto_2/features/movimentacoes/providers/movimentacao_providers.dart';
 import 'package:projeto_2/features/produtos/providers/produto_providers.dart';
+import 'package:projeto_2/features/painel/providers/painel_providers.dart';
+import 'package:projeto_2/features/relatorios/providers/relatorio_providers.dart';
 
 class MovimentacaoFormScreen extends ConsumerStatefulWidget {
   final int produtoId;
@@ -20,7 +22,8 @@ class MovimentacaoFormScreen extends ConsumerStatefulWidget {
       _MovimentacaoFormScreenState();
 }
 
-class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen> {
+class _MovimentacaoFormScreenState
+    extends ConsumerState<MovimentacaoFormScreen> {
   TipoMovimentacao _tipo = TipoMovimentacao.entrada;
   FinalidadeSaida? _finalidade;
   final _qtdController = TextEditingController();
@@ -45,10 +48,7 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
   }
 
   Future<void> _registrar() async {
-    final qtd = QuantidadeUtils.parse(
-      _qtdController.text,
-      fracionavel: true,
-    );
+    final qtd = QuantidadeUtils.parse(_qtdController.text, fracionavel: true);
     if (qtd == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,25 +60,27 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
     final usuario = ref.read(sessionProvider).value;
     if (usuario == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuário não encontrado.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Usuário não encontrado.')));
       return;
     }
 
     setState(() => _carregando = true);
 
     try {
-      await ref.read(movimentacaoRepositoryProvider).registrar(
-        produtoId: widget.produtoId,
-        tipo: _tipo,
-        valor: qtd,
-        usuarioId: usuario.id,
-        finalidade: _tipo == TipoMovimentacao.saida ? _finalidade : null,
-        observacao: _obsController.text.trim().isEmpty
-            ? null
-            : _obsController.text.trim(),
-      );
+      await ref
+          .read(movimentacaoRepositoryProvider)
+          .registrar(
+            produtoId: widget.produtoId,
+            tipo: _tipo,
+            valor: qtd,
+            usuarioId: usuario.id,
+            finalidade: _tipo == TipoMovimentacao.saida ? _finalidade : null,
+            observacao: _obsController.text.trim().isEmpty
+                ? null
+                : _obsController.text.trim(),
+          );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,9 +103,9 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
       ref.invalidate(ultimasMovimentacoesProvider(widget.produtoId));
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,16 +118,159 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
     }
   }
 
+  Future<void> _abrirMenu(
+    Movimentacao m,
+    String produtoNome,
+    bool fracionavel,
+    String unidadeSigla,
+  ) async {
+    final editar = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.edit_outlined),
+          title: const Text('Editar movimentação'),
+          onTap: () => Navigator.pop(sheet, true),
+        ),
+      ),
+    );
+    if (editar == true && mounted) {
+      await _editar(m, produtoNome, fracionavel, unidadeSigla);
+    }
+  }
+
+  Future<void> _editar(
+    Movimentacao m,
+    String produtoNome,
+    bool fracionavel,
+    String unidadeSigla,
+  ) async {
+    final repo = ref.read(movimentacaoRepositoryProvider);
+    final usuario = ref.read(sessionProvider).value;
+    if (usuario == null) return;
+    String format(int valor) =>
+        QuantidadeUtils.format(valor, fracionavel: fracionavel);
+    try {
+      final anterior = await repo.quantidadeEfetiva(m.id);
+      if (!mounted) return;
+      var texto = format(anterior);
+      final nova = await showDialog<int>(
+        context: context,
+        builder: (dialog) => StatefulBuilder(
+          builder: (ctx, atualizar) {
+            final valor = QuantidadeUtils.parse(
+              texto,
+              fracionavel: fracionavel,
+            );
+            return AlertDialog(
+              title: const Text('Editar movimentação'),
+              content: TextFormField(
+                initialValue: format(anterior),
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Nova quantidade ($unidadeSigla)',
+                ),
+                onChanged: (v) => atualizar(() => texto = v),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: valor == null || valor <= 0 || valor == anterior
+                      ? null
+                      : () => Navigator.pop(ctx, valor),
+                  child: const Text('Revisar'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      if (nova == null || !mounted) return;
+      final confirmou = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmar correção?'),
+          content: Text(
+            '$produtoNome: ${format(anterior)} → ${format(nova)} $unidadeSigla. A diferença será registrada como ajuste.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmou != true ||
+          !mounted ||
+          ref.read(sessionProvider).value?.id != usuario.id) {
+        return;
+      }
+      await repo.retificar(
+        id: m.id,
+        usuarioId: usuario.id,
+        anterior: anterior,
+        nova: nova,
+      );
+      if (!mounted) return;
+      ref.invalidate(produtosProvider);
+      ref.invalidate(produtoPorIdProvider(m.produtoId));
+      ref.invalidate(ultimasMovimentacoesProvider(m.produtoId));
+      ref.invalidate(painelProvider);
+      ref.invalidate(estoqueRelatorioProvider);
+      ref.invalidate(movimentacoesRelatorioProvider);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Correção registrada.')));
+      ref.invalidate(historicoProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is AppException
+                  ? e.message
+                  : 'Não foi possível corrigir a movimentação.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final produtoAsync = ref.watch(produtoPorIdProvider(widget.produtoId));
     final usuario = ref.watch(sessionProvider).value;
-    final movimentacoesAsync = ref.watch(ultimasMovimentacoesProvider(widget.produtoId));
+    final movimentacoesAsync = ref.watch(
+      ultimasMovimentacoesProvider(widget.produtoId),
+    );
+
+    final retificaveis = usuario == null
+        ? const <int>{}
+        : ref
+                  .watch(
+                    retificaveisDoProdutoProvider((
+                      produtoId: widget.produtoId,
+                      usuarioId: usuario.id,
+                    )),
+                  )
+                  .value ??
+              const <int>{};
 
     return produtoAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, __) => const Scaffold(
         body: Center(child: Text('Erro ao carregar produto.')),
       ),
@@ -177,7 +322,10 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
               children: [
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 20,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(28),
@@ -191,7 +339,9 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.6,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -211,7 +361,9 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                             'Saldo atual',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -244,7 +396,7 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                            ),
+                  ),
                   child: Row(
                     children: [
                       _TipoSegment(
@@ -364,8 +516,8 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                           _tipo == TipoMovimentacao.perda
                               ? 'Motivo da perda'
                               : _tipo == TipoMovimentacao.ajuste
-                                  ? 'Justificativa'
-                                  : 'Observação',
+                              ? 'Justificativa'
+                              : 'Observação',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -379,8 +531,8 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                           hintText: _tipo == TipoMovimentacao.perda
                               ? 'Motivo da perda'
                               : _tipo == TipoMovimentacao.ajuste
-                                  ? 'Justificativa'
-                                  : 'Observação',
+                              ? 'Justificativa'
+                              : 'Observação',
                         ),
                         maxLines: 2,
                         enabled: ativo && !_carregando,
@@ -407,18 +559,18 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: (ativo && !_carregando) ? _registrar : null,
-                    child: _carregando
-                        ? SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Text('Registrar'),
+                      child: _carregando
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                          : const Text('Registrar'),
+                    ),
                   ),
-                ),
                 ),
                 if (!ativo) ...[
                   const SizedBox(height: 8),
@@ -435,17 +587,13 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: const Text(
                     'Últimas movimentações',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: 8),
                 movimentacoesAsync.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (_, __) => const Center(
                     child: Text('Erro ao carregar movimentações.'),
                   ),
@@ -462,92 +610,125 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
                       itemBuilder: (context, index) {
                         final m = movimentacoes[index];
                         final tipoLabel = m.tipo.rotulo;
-                        final finalidadeLabel =
-                            m.finalidade != null
-                                ? ' (${m.finalidade!.rotulo})'
-                                : '';
+                        final finalidadeLabel = m.finalidade != null
+                            ? ' (${m.finalidade!.rotulo})'
+                            : '';
                         final deltaLabel = _formatarDelta(
                           m.delta,
                           fracionavel,
                           sigla,
                         );
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  color: m.delta > 0
-                                      ? Theme.of(context).colorScheme.primaryContainer
-                                      : Theme.of(context).colorScheme.tertiaryContainer,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    m.delta > 0 ? '+' : '−',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: m.delta > 0
-                                          ? Theme.of(context).colorScheme.primary
-                                          : Theme.of(context).colorScheme.tertiary,
+                        void abrirMenu() =>
+                            _abrirMenu(m, produto.nome, fracionavel, sigla);
+                        final podeEditar = retificaveis.contains(m.id);
+                        return InkWell(
+                          key: ValueKey('movimentacao-${m.id}'),
+                          onLongPress: podeEditar ? abrirMenu : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 9,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: m.delta > 0
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.primaryContainer
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.tertiaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      m.delta > 0 ? '+' : '−',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: m.delta > 0
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '$tipoLabel$finalidadeLabel',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${_formatarDataHora(m.dataHora)} · ${m.usuarioNome ?? ''}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      if (m.observacao != null &&
+                                          m.observacao!.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text('Obs: ${m.observacao}'),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      '$tipoLabel$finalidadeLabel',
-                                      style: const TextStyle(
+                                      deltaLabel,
+                                      style: TextStyle(
                                         fontSize: 14,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w600,
+                                        color: m.delta > 0
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${_formatarDataHora(m.dataHora)} · ${m.usuarioNome ?? ''}',
+                                      'saldo ${QuantidadeUtils.format(m.saldoApos, fracionavel: fracionavel)} $sigla',
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontSize: 11,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                                    if (m.observacao != null && m.observacao!.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text('Obs: ${m.observacao}'),
-                                    ],
                                   ],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    deltaLabel,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: m.delta > 0
-                                          ? Theme.of(context).colorScheme.primary
-                                          : Theme.of(context).colorScheme.tertiary,
-                                    ),
+                                if (podeEditar)
+                                  IconButton(
+                                    tooltip: 'Opções da movimentação',
+                                    icon: const Icon(Icons.more_vert),
+                                    onPressed: abrirMenu,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'saldo ${QuantidadeUtils.format(m.saldoApos, fracionavel: fracionavel)} $sigla',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -582,7 +763,7 @@ class _MovimentacaoFormScreenState extends ConsumerState<MovimentacaoFormScreen>
               color: selecionado && ativo
                   ? colorScheme.surfaceContainerLowest
                   : colorScheme.surface.withValues(alpha: 0),
-                  boxShadow: selecionado && ativo
+              boxShadow: selecionado && ativo
                   ? [
                       BoxShadow(
                         color: colorScheme.shadow.withValues(alpha: 0.08),
