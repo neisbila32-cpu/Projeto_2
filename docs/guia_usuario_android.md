@@ -2,7 +2,7 @@
 
 ## Receber e instalar
 
-1. Receba o arquivo **Estoque-UAN-v1.1.2.apk** por um canal indicado pelo responsável pelo Estoque UAN. O aparelho precisa ter Android 7.0 ou superior. Confira a origem e compare o SHA-256 do arquivo com o que consta no [relatório de encerramento](encerramento.md).
+1. Receba o arquivo **Estoque-UAN-v1.1.3.apk** por um canal indicado pelo responsável pelo Estoque UAN. O aparelho precisa ter Android 7.0 ou superior. Confira a origem e compare o SHA-256 do arquivo com o que consta no [relatório de encerramento](encerramento.md).
 2. No Android, abra o APK em **Arquivos** ou **Downloads** e toque em **Instalar**.
 3. Se o Android pedir autorização, abra **Configurações** a partir do aviso e permita temporariamente **Instalar apps desconhecidos** para o aplicativo que abriu o APK (por exemplo, Arquivos). Volte e conclua a instalação. Desative a permissão depois, se não precisar mais dela.
 4. Abra **Estoque UAN**.
@@ -58,4 +58,4 @@ Instalações antigas de desenvolvimento podem ter outro identificador ou certif
 
 ## Conferir a versão
 
-Abra **Configurações do Android → Apps → Estoque UAN → Informações do app**. A versão aparece nos detalhes do aplicativo; o responsável também deve informar a versão e o SHA-256 do APK distribuído.
+No Estoque UAN, abra **Configurações → Sobre o aplicativo** para ver a versão instalada e os créditos de Neis Bila de Alencar. Também é possível conferir a versão em **Configurações do Android → Apps → Estoque UAN → Informações do app**.

@@ -2,7 +2,15 @@
 
 Aplicativo Flutter exclusivamente offline para controlar o estoque de uma Unidade de Alimentação e Nutrição (UAN). O SQLite no aparelho é a fonte de verdade dos dados. Login, cadastro e recuperação de acesso são locais; não há autenticação remota nem sincronização.
 
-**Versão final estável: 1.1.2 (versionCode 5).** Consulte o [relatório de encerramento](docs/encerramento.md) para os resultados da validação, o SHA-256 do APK e a pendência de proteção da chave de assinatura.
+**Versão final: 1.1.3 (versionCode 6).** Este release acrescenta os créditos de autoria à versão 1.1.2. Consulte o [relatório de encerramento](docs/encerramento.md) para os resultados da validação, o SHA-256 do APK e a pendência de proteção da chave de assinatura.
+
+## Autoria
+
+Desenvolvido por **Neis Bila de Alencar**.
+
+© 2026 Neis Bila de Alencar. Todos os direitos reservados.
+
+Este aviso se refere ao Estoque UAN. As fontes e bibliotecas de terceiros mantêm suas licenças, incluindo a [licença Apache 2.0 da fonte Roboto](assets/fonts/Roboto-LICENSE.txt).
 
 ## Funcionalidades
 

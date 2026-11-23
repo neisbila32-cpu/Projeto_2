@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:projeto_2/features/home/widgets/app_drawer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:projeto_2/features/configuracoes/providers/tema_provider.dart';
+
+final _versaoInstaladaProvider = FutureProvider.autoDispose<String?>(
+  (ref) async {
+    try {
+      return await const MethodChannel(
+        'estoque_uan/app_info',
+      ).invokeMethod<String>('versionName');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  },
+);
 
 class ConfiguracoesScreen extends ConsumerWidget {
   const ConfiguracoesScreen({super.key});
@@ -98,6 +113,47 @@ class ConfiguracoesScreen extends ConsumerWidget {
                         }
                       },
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sobre o aplicativo',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Estoque UAN'),
+                  Text(
+                    ref
+                        .watch(_versaoInstaladaProvider)
+                        .when(
+                          data: (versao) => versao == null || versao.isEmpty
+                              ? 'Versão indisponível'
+                              : 'Versão $versao',
+                          loading: () => 'Consultando a versão…',
+                          error: (_, _) => 'Versão indisponível',
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Desenvolvido por',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Text('Neis Bila de Alencar'),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Direitos autorais',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Text(
+                    '© 2026 Neis Bila de Alencar. Todos os direitos reservados.',
                   ),
                 ],
               ),

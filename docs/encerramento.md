@@ -1,8 +1,29 @@
 # Encerramento do Estoque UAN
 
-Em 23 de novembro de 2026, o responsável pelo projeto aprovou os testes físicos que realizou no Samsung Galaxy A05 e autorizou o encerramento do desenvolvimento. A versão final estável é **1.1.2 (versionCode 5)**.
+Em 23 de novembro de 2026, o responsável pelo projeto aprovou os testes físicos que realizou no Samsung Galaxy A05 com a versão **1.1.2 (versionCode 5)** e autorizou o encerramento do desenvolvimento.
 
-## APK de entrega
+## Release final de autoria
+
+A versão **1.1.3 (versionCode 6)** acrescenta a identificação de autoria em **Configurações → Sobre o aplicativo** e na documentação. A tela consulta a versão instalada no Android.
+
+**Desenvolvido por Neis Bila de Alencar**
+
+© 2026 Neis Bila de Alencar. Todos os direitos reservados.
+
+O aviso se refere à autoria do aplicativo e não cria uma licença de software. A revisão dos arquivos versionados não identificou uma licença geral para o projeto. A [licença Apache 2.0 da fonte Roboto](../assets/fonts/Roboto-LICENSE.txt) e as licenças aplicáveis às dependências de terceiros continuam em vigor.
+
+Os 195 testes automatizados passaram, incluindo os testes da seção Sobre. A análise estática manteve os 24 diagnósticos do baseline. A validação física registrada abaixo se refere à 1.1.2.
+
+| Item | Release final |
+|---|---|
+| Arquivo | `Estoque-UAN-v1.1.3.apk` |
+| Tamanho | 62.331.832 bytes |
+| SHA-256 do APK | `054C6744A1779B4E20D6C963450E0AEBDAA11971ADC7B8B9C04538AAED1F116C` |
+| Identificador Android | `com.github.neisbila32cpu.estoqueuan` |
+| Compatibilidade | Android 7.0 (API 24) ou superior |
+| Assinatura | v2, com o mesmo certificado da versão 1.1.2 |
+
+## APK da versão 1.1.2 validada no Samsung
 
 | Item | Valor |
 |---|---|
@@ -27,6 +48,6 @@ Na validação anterior da 1.1.1, a mensagem de confirmação de uma saída most
 
 ## Instalação, backup e distribuição
 
-O [guia de instalação e uso](guia_usuario_android.md) inclui primeiro acesso, operações de estoque, backup, restauração, recuperação em outro celular e atualização preservando os dados. As instruções de [distribuição Android](distribuicao_android.md) descrevem como conferir a identidade e a assinatura do APK.
+O [guia de instalação e uso](guia_usuario_android.md) inclui primeiro acesso, operações de estoque, backup, restauração, recuperação em outro celular e atualização preservando os dados. As instruções de [distribuição Android](distribuicao_android.md) descrevem como conferir a identidade e a assinatura do APK. A entrega por arquivo usa o APK final 1.1.3 e o SHA-256 da seção de autoria.
 
 **Pendência de segurança.** A primeira cópia externa do keystore teve o SHA-256 conferido. A segunda cópia independente permanece **pendente de verificação**. A proteção da chave continua incompleta e a distribuição irrestrita aguarda essa verificação. O APK permanece disponível como arquivo local, sem publicação automática.
