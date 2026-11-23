@@ -20,7 +20,7 @@ Login, produtos, categorias, movimentações, inventários, histórico, painel e
 
 ## Corrigir uma quantidade
 
-Em **Histórico de movimentações**, segure uma entrada ou saída ou toque nos três pontos ao lado dela. Escolha **Editar movimentação**, informe a quantidade correta e toque em **Revisar**. Confira os dois valores e confirme. O histórico mantém o lançamento original e acrescenta um ajuste com a diferença, o responsável e o horário. Operadores corrigem seus próprios lançamentos e administradores podem corrigir os de outros usuários.
+Em **Movimentar estoque → Últimas movimentações**, segure uma entrada ou saída ou toque nos três pontos ao lado dela. Escolha **Editar movimentação**, informe a quantidade correta e toque em **Revisar**. Confira os dois valores e confirme. O histórico mantém o lançamento original e acrescenta um ajuste com a diferença, o responsável e o horário. Operadores corrigem seus próprios lançamentos e administradores podem corrigir os de outros usuários.
 
 Se o produto já passou por uma contagem ou ajuste incompatível, o aplicativo explica o bloqueio. Uma contagem antiga cujo encerramento não foi registrado no banco anterior também pode bloquear a correção.
 

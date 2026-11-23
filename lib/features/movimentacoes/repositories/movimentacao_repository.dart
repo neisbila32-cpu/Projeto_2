@@ -93,6 +93,45 @@ class MovimentacaoRepository {
     return rows.single['quantidade'] as int;
   }
 
+  static const _vinculosRetificacao = '''
+        JOIN produtos p ON p.id=m.produto_id AND p.contexto_id=m.contexto_id AND p.ativo=1
+        JOIN unidades u ON u.id=p.unidade_id AND u.contexto_id=m.contexto_id
+        JOIN usuarios a ON a.id=? AND a.contexto_id=m.contexto_id AND a.ativo=1
+  ''';
+
+  static const _registroRetificavel = '''
+    m.inventario_id IS NULL AND m.tipo IN ('entrada','saida') AND (a.perfil='admin' OR m.usuario_id=a.id)
+  ''';
+
+  static const _impedimentoRetificacao = '''
+    EXISTS (
+      SELECT 1 FROM itens_inventario x JOIN inventarios i ON i.id=x.inventario_id
+      WHERE x.produto_id=m.produto_id AND x.contexto_id=m.contexto_id AND
+        (i.status='em_andamento' OR i.finalizado_em IS NULL OR i.finalizado_em>=m.data_hora)
+    ) OR EXISTS (
+      SELECT 1 FROM movimentacoes posterior
+      WHERE posterior.produto_id=m.produto_id AND posterior.contexto_id=m.contexto_id
+        AND posterior.id>m.id AND posterior.tipo='ajuste' AND posterior.origem_id IS NULL
+    )
+  ''';
+
+  Future<Set<int>> retificaveisDoProduto(int produtoId, int usuarioId) async {
+    final db = await _obterBanco();
+    final contexto = await ContextoTrabalhoRepository.exigirIdAtivo(db);
+    final linhas = await db.rawQuery(
+      '''
+      SELECT m.id FROM (
+        SELECT * FROM movimentacoes WHERE produto_id=? AND contexto_id=?
+        ORDER BY data_hora DESC, id DESC LIMIT 10
+      ) m
+      $_vinculosRetificacao
+      WHERE $_registroRetificavel AND NOT ($_impedimentoRetificacao)
+    ''',
+      [produtoId, contexto, usuarioId],
+    );
+    return linhas.map((linha) => linha['id'] as int).toSet();
+  }
+
   Future<void> retificar({
     required int id,
     required int usuarioId,
@@ -104,12 +143,10 @@ class MovimentacaoRepository {
       final contexto = await ContextoTrabalhoRepository.exigirIdAtivo(txn);
       final rows = await txn.rawQuery(
         '''
-        SELECT m.*, p.saldo, u.fracionavel FROM movimentacoes m
-        JOIN produtos p ON p.id=m.produto_id AND p.contexto_id=m.contexto_id AND p.ativo=1
-        JOIN unidades u ON u.id=p.unidade_id AND u.contexto_id=m.contexto_id
-        JOIN usuarios a ON a.id=? AND a.contexto_id=m.contexto_id AND a.ativo=1
-        WHERE m.id=? AND m.contexto_id=? AND m.inventario_id IS NULL
-          AND m.tipo IN ('entrada','saida') AND (a.perfil='admin' OR m.usuario_id=a.id)
+        SELECT m.*, p.saldo, u.fracionavel, ($_impedimentoRetificacao) AS impedido
+        FROM movimentacoes m
+        $_vinculosRetificacao
+        WHERE m.id=? AND m.contexto_id=? AND $_registroRetificavel
       ''',
         [usuarioId, id, contexto],
       );
@@ -140,17 +177,7 @@ class MovimentacaoRepository {
           'Informe uma nova quantidade válida e diferente da anterior.',
         );
       }
-      final impedimentos = await txn.rawQuery(
-        '''
-        SELECT 1 FROM itens_inventario x JOIN inventarios i ON i.id=x.inventario_id
-        WHERE x.produto_id=? AND x.contexto_id=? AND
-          (i.status='em_andamento' OR i.finalizado_em IS NULL OR i.finalizado_em>=?)
-        UNION ALL SELECT 1 FROM movimentacoes WHERE produto_id=? AND contexto_id=?
-          AND id>? AND tipo='ajuste' AND origem_id IS NULL LIMIT 1
-      ''',
-        [produto, contexto, m['data_hora'], produto, contexto, id],
-      );
-      if (impedimentos.isNotEmpty) {
+      if (m['impedido'] == 1) {
         throw AppException(
           'Há uma contagem ou ajuste posterior incompatível com esta correção.',
         );

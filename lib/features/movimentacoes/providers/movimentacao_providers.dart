@@ -10,7 +10,14 @@ final movimentacaoRepositoryProvider = Provider<MovimentacaoRepository>((ref) {
 
 final ultimasMovimentacoesProvider =
     FutureProvider.family<List<Movimentacao>, int>((ref, produtoId) {
-  return ref
-      .watch(movimentacaoRepositoryProvider)
-      .ultimasDoProduto(produtoId);
-});
+      return ref
+          .watch(movimentacaoRepositoryProvider)
+          .ultimasDoProduto(produtoId);
+    });
+
+final retificaveisDoProdutoProvider = FutureProvider.autoDispose
+    .family<Set<int>, ({int produtoId, int usuarioId})>((ref, filtro) async {
+      final repo = ref.watch(movimentacaoRepositoryProvider);
+      await ref.watch(ultimasMovimentacoesProvider(filtro.produtoId).future);
+      return repo.retificaveisDoProduto(filtro.produtoId, filtro.usuarioId);
+    });
